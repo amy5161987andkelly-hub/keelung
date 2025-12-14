@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>基隆港大冒險 - 遊戲入口</title>
+    <style>
+        /* --- 全局設計 --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+            background: #0f2027; 
+            background: linear-gradient(to right, #2c5364, #203a43, #0f2027);
+            color: white;
+            overflow: hidden; /* 鎖定 Body 不讓整個網頁彈動 */
+        }
+
+        /* --- 主選單層 (Menu Layer) --- */
+        #main-menu {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            transition: transform 0.5s ease-in-out;
+            
+            /* 修正 1: 讓選單內部可以滑動 */
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; /* 讓 iOS 滑動更順暢 */
+            
+            /* 使用 Flexbox 排版，但允許內容撐開 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 預設置中，但如果高度不夠(手機橫向)則靠上 */
+            justify-content: center; 
+        }
+
+        /* 內容容器：確保在手機上內容多時有足夠空間 */
+        .menu-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 100%; /* 確保至少佔滿一頁 */
+            padding: 40px 20px; /* 上下留白，避免標題被切掉 */
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 20px #00d2ff;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        p.subtitle {
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .card-container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            padding-bottom: 50px; /* 底部留白方便滑動 */
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 280px;
+            padding: 30px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            /* 防止卡片在手機上被擠壓 */
+            flex-shrink: 0; 
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.6);
+            border-color: #fff;
+        }
+
+        .game-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .game-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #ffdd57;
+        }
+
+        .game-desc {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #ddd;
+        }
+
+        /* --- 遊戲容器層 (Game Layer) --- */
+        #game-wrapper {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            transform: translateY(100%);
+            transition: transform 0.5s ease-in-out;
+            z-index: 20;
+            background: black;
+            overflow: hidden; /* 遊戲層禁止捲動 */
+        }
+
+        iframe {
+            width: 100%; height: 100%; border: none; display: block;
+        }
+
+        /* --- 修正 2: 小巧的圓形返回按鈕 (右上角) --- */
+        #back-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px; /* 改在右上角 */
+            z-index: 30;
+            
+            width: 45px;
+            height: 45px;
+            border-radius: 50%; /* 圓形 */
+            padding: 0;
+            
+            background-color: rgba(255, 71, 87, 0.8); /* 稍微透明 */
+            color: white;
+            border: 2px solid white;
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s, opacity 0.3s;
+            
+            display: none; /* 預設隱藏 */
+        }
+
+        #back-btn:hover {
+            background-color: #ff4757;
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        /* --- 手機版適配調整 --- */
+        @media (max-width: 768px) {
+            /* 在手機上改為靠上對齊，避免標題被切掉 */
+            #main-menu {
+                justify-content: flex-start; 
+            }
+            
+            h1 { font-size: 2rem; margin-top: 20px; }
+            
+            .card-container {
+                flex-direction: column; 
+                align-items: center;
+            }
+            
+            .game-card { 
+                width: 80%; 
+                margin: 0 auto; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="back-btn" onclick="goHome()" title="返回主選單">🏠</button>
+
+    <div id="main-menu">
+        <div class="menu-content">
+            <h1>基隆港大冒險</h1>
+            <p class="subtitle">選擇你的探索方式</p>
+
+            <div class="card-container">
+                <div class="game-card" onclick="startGame('map.html')">
+                    <span class="game-icon">🗺️</span>
+                    <div class="game-title">實境解謎</div>
+                    <div class="game-desc">
+                        探索基隆景點，點擊熱點解鎖在地知識與隱藏彩蛋。
+                    </div>
+                </div>
+
+                <div class="game-card" onclick="startGame('game.html')">
+                    <span class="game-icon">🏃</span>
+                    <div class="game-title">生存挑戰</div>
+                    <div class="game-desc">
+                        扮演基隆市民，在颱風來臨前收集裝備。小心魔王！
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-wrapper">
+        <iframe id="game-frame" src=""></iframe>
+    </div>
+
+    <script>
+        const menuLayer = document.getElementById('main-menu');
+        const gameLayer = document.getElementById('game-wrapper');
+        const gameFrame = document.getElementById('game-frame');
+        const backBtn = document.getElementById('back-btn');
+
+        function startGame(url) {
+            // 1. 設定 iframe 網址
+            gameFrame.src = url;
+
+            // 2. 切換動畫
+            menuLayer.style.transform = 'translateY(-100%)';
+            gameLayer.style.transform = 'translateY(0)';
+
+            // 3. 顯示返回按鈕 (延遲顯示以免動畫卡頓)
+            setTimeout(() => {
+                backBtn.style.display = 'flex'; // 修正: flex 讓圖示置中
+            }, 500);
+
+            // 4. 自動聚焦 (讓鍵盤可操作)
+            gameFrame.onload = function() {
+                gameFrame.contentWindow.focus();
+            };
+        }
+
+        function goHome() {
+            // 1. 切換動畫
+            menuLayer.style.transform = 'translateY(0)';
+            gameLayer.style.transform = 'translateY(100%)';
+
+            // 2. 隱藏返回按鈕
+            backBtn.style.display = 'none';
+
+            // 3. 關閉遊戲 (釋放效能)
+            setTimeout(() => {
+                gameFrame.src = "";
+            }, 500);
+        }
+    </script>
+</body>
+</html>

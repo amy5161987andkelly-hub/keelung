@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>基隆港生存大冒險 - 戀愛結局版</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;900&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        /* 震動特效動畫 */
+        @keyframes shake {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-5px, 5px); }
+            50% { transform: translate(5px, -5px); }
+            75% { transform: translate(-5px, -5px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .shake-effect {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        #top-bar {
+            padding: 15px;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            pointer-events: auto;
+        }
+
+        #hud {
+            font-size: 16px; font-weight: bold;
+            color: white; text-shadow: 1px 1px 0 #000;
+            background: rgba(0,0,0,0.5);
+            padding: 10px; border-radius: 10px;
+            max-width: 200px;
+        }
+
+        #btn-toggle-controls {
+            background: rgba(255, 255, 255, 0.2); border: 2px solid white;
+            color: white; width: 40px; height: 40px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 20px; cursor: pointer; backdrop-filter: blur(4px);
+        }
+
+        #controls {
+            padding: 0 30px; display: flex; justify-content: space-between; align-items: flex-end;
+            pointer-events: auto; width: 100%; box-sizing: border-box;
+            position: absolute; bottom: 80px; z-index: 50;
+        }
+        .hidden-controls { display: none !important; }
+
+        .ctrl-group { display: flex; gap: 20px; }
+        .ctrl-btn {
+            width: 70px; height: 70px;
+            background: rgba(255, 255, 255, 0.25); border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.6);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 30px; font-weight: bold; color: white;
+            user-select: none; backdrop-filter: blur(2px); touch-action: none;
+            transition: transform 0.1s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .ctrl-btn:active, .ctrl-btn.active { background: rgba(255, 255, 255, 0.5); transform: scale(0.9); }
+        #btn-jump { background: rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.7); width: 80px; height: 80px; }
+        #btn-jump:active, #btn-jump.active { background: rgba(239, 68, 68, 0.8); }
+
+        /* Modal Styles */
+        #quiz-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none;
+            justify-content: center; align-items: center; pointer-events: auto; z-index: 100;
+        }
+        .modal-content {
+            background: white; padding: 25px; border-radius: 20px;
+            width: 90%; max-width: 450px; text-align: center;
+            border: 5px solid #3B82F6; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .btn-option {
+            display: block; width: 100%; padding: 12px; margin: 8px 0;
+            background: #f0f9ff; border: 2px solid #bae6fd; border-radius: 12px;
+            font-size: 16px; font-weight: bold; color: #0369a1;
+            cursor: pointer; text-align: left; transition: all 0.2s;
+        }
+        .btn-option:active { background: #0284c7; color: white; transform: scale(0.98); }
+
+        /* Start Screen */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white;
+            z-index: 200; pointer-events: auto; text-align: center; padding: 20px; box-sizing: border-box;
+        }
+        
+        /* 結局畫面樣式：文字框固定在上方 */
+        #end-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: transparent; 
+            display: none; flex-direction: column;
+            justify-content: flex-start; /* 內容靠上對齊 */
+            align-items: center;
+            z-index: 200; pointer-events: none; 
+            padding-top: 50px; /* 增加頂部距離 */
+            box-sizing: border-box;
+        }
+        
+        .end-msg-box {
+            background: rgba(0,0,0,0.85);
+            padding: 25px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            pointer-events: auto;
+            border: 3px solid #FCD34D;
+            max-width: 90%;
+            width: 500px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            animation: slideDown 0.5s ease-out;
+            text-align: center;
+        }
+
+        @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .big-btn {
+            padding: 10px 30px; font-size: 20px; font-weight: bold;
+            background: #EF4444; color: white; border: none; border-radius: 50px;
+            cursor: pointer; margin-top: 15px; box-shadow: 0 5px 0 #991B1B; transition: transform 0.1s;
+            pointer-events: auto;
+        }
+        .big-btn:active { transform: translateY(5px); box-shadow: none; }
+
+        .info-box {
+            background: #EFF6FF; padding: 12px; border-radius: 10px;
+            font-size: 15px; color: #1E3A8A; text-align: left; margin-bottom: 15px;
+            line-height: 1.5; max-height: 120px; overflow-y: auto;
+        }
+
+        /* 受傷紅光特效 (改為四周暗角) */
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 60%, rgba(255, 0, 0, 0.6) 100%);
+            opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 50;
+        }
+
+        #inventory-list {
+            display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;
+        }
+        .inv-item {
+            font-size: 10px; background: rgba(255,255,255,0.2); padding: 2px 5px; border-radius: 4px;
+        }
+
+        #game-msg {
+            position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7); color: #FFF; padding: 10px 20px; border-radius: 20px;
+            font-weight: bold; font-size: 18px; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+            text-align: center; width: 80%; z-index: 60;
+        }
+
+        #fade-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; opacity: 0; pointer-events: none; transition: opacity 2s; z-index: 150;
+        }
+
+        @media (min-width: 1024px) { #controls { display: none; } }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="damage-overlay"></div>
+    <div id="fade-overlay"></div>
+    <div id="game-msg"></div>
+
+    <div class="ui-layer">
+        <div id="top-bar">
+            <div id="hud">
+                <div style="margin-bottom:5px;">🎒 包包: <span id="item-count">0</span>/15</div>
+                <div id="inventory-list"></div>
+            </div>
+            <div id="btn-toggle-controls" onclick="toggleControls()" title="顯示/隱藏虛擬按鍵">🎮</div>
+        </div>
+
+        <div id="controls">
+            <div class="ctrl-group">
+                <div class="ctrl-btn" id="btn-left">←</div>
+                <div class="ctrl-btn" id="btn-right">→</div>
+            </div>
+            <div class="ctrl-btn" id="btn-jump">跳</div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1 style="font-size: 36px; color: #FCD34D; margin-bottom: 10px;">基隆港生存大冒險</h1>
+        <div style="font-size: 16px; color: #e5e7eb; margin-bottom: 20px; max-width: 500px; line-height: 1.6;">
+            你現在只穿著內衣褲！<br>
+            收集裝備才能存活。<br>
+            <span style="color:#FCA5A5;">颱風要來了！記得準備雨具！</span>
+        </div>
+        <button class="big-btn" onclick="startGame()">開始冒險</button>
+    </div>
+
+    <div id="quiz-modal">
+        <div class="modal-content">
+            <h3 id="q-reward" style="color:#F59E0B; font-size:28px; margin-bottom:10px; font-weight:900;">獲得：道具名稱</h3>
+            <div class="info-box" id="q-desc">地點介紹...</div>
+            <p id="q-text" style="font-weight:bold; font-size:16px; margin-bottom:15px; color:#333;">題目？</p>
+            <div id="q-options"></div>
+        </div>
+    </div>
+
+    <div id="end-screen" style="display:none;">
+        <div class="end-msg-box">
+            <h1 id="end-title" style="font-size: 28px; color: #FCD34D; margin:0 0 10px 0;">結局</h1>
+            <div id="end-msg" style="font-size: 16px; line-height: 1.6; color: white;"></div>
+            <button class="big-btn" onclick="location.reload()">再試一次</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) document.getElementById('controls').style.display = 'flex';
+
+    function toggleControls() {
+        const controls = document.getElementById('controls');
+        if (controls.style.display === 'none') {
+            controls.style.display = 'flex';
+            controls.classList.remove('hidden-controls');
+        } else {
+            controls.style.display = 'none';
+        }
+    }
+
+    const quizData = [
+        { id:0, item: "褲子", title: "福德宮 (A1)", desc: "位於仁愛市場旁巷子內，建於1849年，供奉土地公婆與虎爺。", q: "福德宮內除了土地公婆外，還供奉哪位神祇保佑孩童？", opts: ["三太子", "註生娘娘", "虎爺", "文昌帝君"], ans: 2 },
+        { id:1, item: "上衣", title: "護國城隍廟 (A2-1)", desc: "基隆三大廟之一，每年農曆八月十四日舉行日夜遊巡。", q: "城隍廟每年農曆八月十四日會舉行什麼活動？", opts: ["日夜遊巡", "放水燈", "搶孤", "炸寒單"], ans: 0 },
+        { id:2, item: "帽子", title: "慶安宮 (A2-2)", desc: "供奉媽祖，見證了基隆市街的形成。", q: "慶安宮最早是建於哪裡？", opts: ["海洋廣場", "和平島", "虎仔山", "獅球嶺"], ans: 2 },
+        { id:3, item: "防災背包", title: "防災背包 (A4)", desc: "基隆火車站是台灣鐵路起點，人潮眾多，隨時要有防災意識。", q: "基隆火車站擁有什麼特殊的地位？", opts: ["台灣鐵路起點", "高鐵終點", "捷運站", "纜車起點"], ans: 0 },
+        { id:4, item: "手錶", title: "海洋廣場 (A3)", desc: "觀賞船隻與黑鳶的絕佳地點。", q: "在海洋廣場常可以見到哪種鳥類？", opts: ["白鷺鷥", "黑鳶", "海鷗", "藍腹鷴"], ans: 1 },
+        { id:5, item: "雨衣", title: "奠濟宮 (B1)", desc: "奉祀開漳聖王，著名的廟口夜市以此為中心。", q: "奠濟宮的主要供奉神明是？", opts: ["關聖帝君", "開漳聖王", "保生大帝", "清水祖師"], ans: 1 },
+        { id:6, item: "外套", title: "廟口夜市 (B2)", desc: "仁三路至愛四路，美食集散地。", q: "廟口夜市是圍繞著哪座廟宇發展的？", opts: ["慶安宮", "城隍廟", "奠濟宮", "福德宮"], ans: 2 },
+        { id:7, item: "食物", title: "崁仔頂魚市 (A2)", desc: "北台灣最大的魚貨集散地，越夜越熱鬧。", q: "想要去崁仔頂魚市買最新鮮的魚，應該什麼時候去？", opts: ["中午", "下午", "半夜到清晨", "傍晚"], ans: 2 },
+        { id:8, item: "水", title: "仁愛市場 (A2)", desc: "傳統市場與美食的結合，二樓有許多美食。", q: "仁愛市場的二樓主要以什麼聞名？", opts: ["五金", "美食小吃", "停車場", "公園"], ans: 1 },
+        { id:9, item: "手電筒", title: "信二防空洞 (C3-1)", desc: "人工開鑿的戰時遺跡，內部昏暗。", q: "信二防空洞屬於哪種類型？", opts: ["天然洞穴", "人工開鑿", "地下碉堡", "磚造"], ans: 1 },
+        { id:10, item: "鏟子", title: "麗都蝶客花園 (B3)", desc: "東岸旅客中心三樓，可眺望郵輪。", q: "麗都蝶客花園位於幾樓？", opts: ["一樓", "二樓", "三樓", "頂樓"], ans: 2 },
+        { id:11, item: "炸彈", title: "基隆塔 (C4)", desc: "造型參考橋式起重機的橘色高塔。", q: "基隆塔的造型靈感來自？", opts: ["燈塔", "貨櫃輪", "橋式起重機", "郵輪"], ans: 2 },
+        { id:12, item: "錢幣", title: "義二路商圈 (C3-2)", desc: "日治時期稱為基隆銀座，商業繁榮。", q: "義二路商圈早期有什麼優勢？", opts: ["容易淹水", "販售高級舶來品", "適合種田", "打鐵街"], ans: 1 },
+        { id:13, item: "急救箱", title: "許梓桑古厝 (B)", desc: "山坡上的歷史建築，路途可能崎嶇。", q: "許梓桑古厝位於哪裡？", opts: ["海邊", "山坡上", "地下室", "港口"], ans: 1 },
+        { id:14, item: "鑰匙", title: "雞籠中元祭", desc: "傳承百年的文化資產，開啟鬼門關。", q: "基隆每年農曆七月會舉辦什麼活動？", opts: ["炸寒單", "中元祭", "媽祖繞境", "蜂炮"], ans: 1 }
+    ];
+
+    let gameState = 'START'; 
+    let inventory = new Set(); 
+    let currentQuizItem = null;
+    let cutsceneTimer = 0;
+    let groundCrackWidth = 0;
+    let endingType = ''; 
+    let bossState = 'IDLE'; 
+
+    const camera = { x: 0, y: 0 };
+    const player = {
+        x: 100, y: 0, w: 40, h: 60, vx: 0, vy: 0, speed: 5, jumpForce: -15,
+        grounded: false, facingRight: true, invincible: 0, flash: false,
+        talking: null
+    };
+    const GRAVITY = 0.8;
+    const FRICTION = 0.8;
+
+    let platforms = [], items = [], clouds = [], decorations = [], enemies = [], rain = [];
+
+    function initLevel() {
+        platforms = []; items = []; clouds = []; decorations = []; enemies = []; rain = [];
+        inventory.clear();
+        cutsceneTimer = 0;
+        groundCrackWidth = 0;
+        bossState = 'IDLE';
+        document.getElementById('fade-overlay').style.opacity = 0;
+        
+        const groundY = canvas.height * 0.65; 
+        const levelLength = 6500; 
+
+        platforms.push({ x: -100, y: groundY, w: levelLength + 500, h: canvas.height, type: 'ground' });
+
+        for(let i=0; i<30; i++) {
+            clouds.push({
+                x: Math.random() * levelLength, y: Math.random() * (groundY - 150), 
+                size: 20 + Math.random() * 30, speed: 0.2 + Math.random() * 0.3
+            });
+        }
+        
+        for(let i=0; i<100; i++) {
+            rain.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                l: 10 + Math.random() * 20,
+                v: 10 + Math.random() * 10
+            });
+        }
+
+        for(let i=0; i<10; i++) {
+            decorations.push({ x: 300 + i * 700, y: groundY, type: 'crane' });
+        }
+
+        for(let i=0; i<10; i++) {
+            enemies.push({
+                x: 800 + i * 600, y: groundY - 150 - Math.random() * 100,
+                w: 40, h: 20, vx: 2, startX: 800 + i * 600, range: 300 
+            });
+        }
+
+        const startX = 400;
+        const gap = 380; 
+        
+        quizData.forEach((q, index) => {
+            const cx = startX + index * gap;
+            const cy = groundY - 120;
+            platforms.push({ x: cx - 40, y: groundY - 80, w: 80, h: 20, type: 'brick' });
+            
+            items.push({ 
+                x: cx, y: cy, r: 15, id: q.id, name: q.item,
+                collected: false, active: true, floatOffset: Math.random() * Math.PI * 2,
+                cooldown: 0
+            });
+
+            enemies.push({
+                x: cx + 100, y: groundY - 180 - Math.random() * 50,
+                w: 40, h: 20, vx: 1.5, startX: cx + 50, range: 200, 
+                targetId: q.id, targetName: q.item
+            });
+        });
+
+        const endX = startX + 15 * gap + 200;
+        decorations.push({ x: endX, y: groundY, type: 'cave' }); // 洞穴/魔王位置
+        
+        player.x = 50; player.y = groundY - player.h - 10; player.vx = 0; player.vy = 0;
+        player.invincible = 0; player.facingRight = true; player.talking = null;
+        
+        updateUI();
+    }
+
+    const keys = { right: false, left: false, up: false };
+
+    window.addEventListener('keydown', e => {
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { keys.up = true; tryJump(); }
+    });
+    window.addEventListener('keyup', e => {
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+    });
+
+    function tryJump() {
+        if (player.grounded && gameState === 'PLAYING') {
+            player.vy = player.jumpForce;
+            player.grounded = false;
+        }
+    }
+
+    const setupTouch = (id, key) => {
+        const btn = document.getElementById(id);
+        btn.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); keys[key] = true; btn.classList.add('active'); if(key==='up') tryJump();
+        }, { passive: false });
+        btn.addEventListener('touchend', (e) => { 
+            e.preventDefault(); keys[key] = false; btn.classList.remove('active');
+        }, { passive: false });
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); keys[key]=true; btn.classList.add('active'); if(key==='up') tryJump();});
+        btn.addEventListener('mouseup', (e) => { e.preventDefault(); keys[key]=false; btn.classList.remove('active');});
+        btn.addEventListener('mouseleave', (e) => { keys[key]=false; btn.classList.remove('active');});
+    };
+    setupTouch('btn-left', 'left'); setupTouch('btn-right', 'right'); setupTouch('btn-jump', 'up');
+
+    function gameLoop() {
+        if (gameState === 'PLAYING') update();
+        if (gameState === 'CUTSCENE') updateCutscene();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function update() {
+        if (keys.right) { player.vx += 1; player.facingRight = true; }
+        if (keys.left) { player.vx -= 1; player.facingRight = false; }
+        
+        player.vx *= FRICTION;
+        player.x += player.vx;
+        player.vy += GRAVITY;
+        player.y += player.vy;
+
+        if (player.invincible > 0) {
+            player.invincible--;
+            player.flash = Math.floor(Date.now() / 100) % 2 === 0; 
+        } else { player.flash = false; }
+
+        player.grounded = false;
+        platforms.forEach(plat => {
+            if (player.x + player.w > plat.x && player.x < plat.x + plat.w &&
+                player.y + player.h > plat.y && player.y + player.h < plat.y + plat.h + 20 &&
+                player.vy >= 0) {
+                player.grounded = true; player.vy = 0; player.y = plat.y - player.h;
+            }
+        });
+
+        if (player.x < 0) { player.x = 0; player.vx = 0; }
+        if (player.y > canvas.height + 100) {
+            if (inventory.size > 0) {
+                player.x = camera.x + 50; player.y = 0; player.vy = 0;
+                playerHurt(null, true);
+            } else {
+                player.x = camera.x + 50; player.y = 0; player.vy = 0;
+            }
+        }
+
+        enemies.forEach(e => {
+            e.x += e.vx;
+            if (e.x > e.startX + e.range || e.x < e.startX - e.range) e.vx *= -1;
+            if (checkRectCollide(player, e)) playerHurt(e);
+        });
+
+        items.forEach(item => {
+            if (item.cooldown > 0) item.cooldown--;
+            if (item.active && !item.collected) {
+                const dx = (player.x + player.w/2) - item.x;
+                const dy = (player.y + player.h/2) - item.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < item.r + player.w/2 && item.cooldown <= 0) triggerQuiz(item);
+            }
+        });
+
+        const cave = decorations.find(d => d.type === 'cave');
+        if (player.x > cave.x - 300 && gameState === 'PLAYING') {
+            startCutscene(cave);
+        }
+
+        camera.x = player.x - canvas.width / 4;
+        if (camera.x < 0) camera.x = 0;
+    }
+
+    function startCutscene(cave) {
+        gameState = 'CUTSCENE';
+        player.vx = 0; 
+        player.x = cave.x - 150; // 站在魔王面前
+        player.facingRight = true;
+        player.talking = "那是...大猩猩?!";
+        bossState = 'IDLE';
+        cutsceneTimer = 0;
+        // 鏡頭鎖定魔王與玩家
+        camera.x = player.x - canvas.width / 4; 
+    }
+
+    function updateCutscene() {
+        cutsceneTimer++;
+        
+        // 0~40: 魔王舉手蓄力
+        if (cutsceneTimer < 40) {
+            bossState = 'WINDUP';
+            if (cutsceneTimer > 20) player.talking = "牠要幹嘛？";
+        }
+        // 40: 重擊
+        else if (cutsceneTimer === 40) {
+            bossState = 'SMASH';
+            document.getElementById('game-container').classList.add('shake-effect');
+            setTimeout(() => document.getElementById('game-container').classList.remove('shake-effect'), 500);
+        }
+        // 40~100: 地震與地裂
+        else if (cutsceneTimer < 100) {
+            bossState = 'SMASH';
+            const shake = (Math.random() - 0.5) * 30; 
+            camera.x += shake;
+            groundCrackWidth += 5; 
+            player.talking = "哇啊啊！地震！";
+        }
+        // 100+: 掉落
+        else if (cutsceneTimer >= 100) {
+            bossState = 'IDLE'; 
+            player.vy += GRAVITY;
+            player.y += player.vy; 
+            player.talking = "救命啊～～";
+            const opacity = Math.min((cutsceneTimer - 100) / 100, 1);
+            document.getElementById('fade-overlay').style.opacity = opacity;
+        }
+        
+        if (cutsceneTimer > 220) {
+            checkEnding();
+        }
+    }
+
+    function checkRectCollide(r1, r2) {
+        return (r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y);
+    }
+
+    function playerHurt(sourceEagle = null, force = false) {
+        // 震動效果
+        document.getElementById('game-container').classList.add('shake-effect');
+        setTimeout(() => document.getElementById('game-container').classList.remove('shake-effect'), 300);
+
+        if (player.invincible > 0 && !force) return;
+        const overlay = document.getElementById('damage-overlay');
+        overlay.style.opacity = 1;
+        setTimeout(() => overlay.style.opacity = 0, 200);
+        player.invincible = 120; player.vy = -10; player.vx = player.facingRight ? -10 : 10;
+
+        const dropItem = (id) => {
+            inventory.delete(id);
+            const itemObj = items.find(i => i.id === id);
+            if(itemObj) { itemObj.collected = false; itemObj.active = true; itemObj.cooldown = 300; return itemObj.name; }
+            return "";
+        };
+
+        if (force) {
+            if (inventory.size > 0) {
+                const itemsArray = Array.from(inventory);
+                const lostItemId = itemsArray[Math.floor(Math.random() * itemsArray.length)];
+                const name = dropItem(lostItemId);
+                showMsg(`不小心摔倒，【${name}】掉了！\n它暫時變成半透明，請稍後再撿！`);
+            }
+            updateUI();
+            return;
+        }
+
+        if (sourceEagle) {
+            const targetId = sourceEagle.targetId;
+            if (inventory.has(targetId)) {
+                const name = dropItem(targetId);
+                showMsg(`老鷹搶走了你的【${name}】！\n它掉回原位並暫時凍結了！`);
+            } else { showMsg("老鷹攻擊！好險沒東西給牠搶！"); }
+            updateUI();
+        }
+    }
+
+    function showMsg(text) {
+        const msgEl = document.getElementById('game-msg');
+        msgEl.innerText = text;
+        msgEl.style.opacity = 1;
+        setTimeout(() => msgEl.style.opacity = 0, 4000); 
+    }
+
+    function draw() {
+        if (gameState === 'ENDING_SCENE') {
+            drawEndingScene();
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        
+        if (gameState === 'CUTSCENE') {
+            ctx.fillStyle = '#4B5563'; 
+        } else {
+            ctx.fillStyle = '#87CEEB'; 
+        }
+        
+        clouds.forEach(c => {
+            c.x -= c.speed; if(c.x < -100) c.x = canvas.width + 100;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(-camera.x, 0);
+
+        if (gameState === 'CUTSCENE') {
+            ctx.strokeStyle = 'rgba(173, 216, 230, 0.6)';
+            ctx.lineWidth = 1;
+            rain.forEach(r => {
+                r.y += r.v;
+                if (r.y > canvas.height) r.y = -10;
+                ctx.beginPath();
+                ctx.moveTo(r.x + camera.x, r.y); 
+                ctx.lineTo(r.x + camera.x - 2, r.y + r.l);
+                ctx.stroke();
+            });
+        }
+
+        decorations.forEach(d => {
+            if (d.type === 'crane') {
+                ctx.fillStyle = '#EA580C'; ctx.fillRect(d.x, d.y - 150, 20, 150); 
+                ctx.fillRect(d.x - 50, d.y - 150, 150, 20); 
+                ctx.strokeStyle = '#EA580C'; ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(d.x, d.y-130); ctx.lineTo(d.x+50, d.y); ctx.stroke();
+            } else if (d.type === 'cave') {
+                // 這裡繪製魔王 (大猩猩)
+                drawBoss(d.x, d.y, bossState);
+            }
+        });
+
+        if (gameState === 'CUTSCENE' && groundCrackWidth > 0) {
+            const cave = decorations.find(d => d.type === 'cave');
+            if (cave) {
+                ctx.fillStyle = '#000'; 
+                ctx.beginPath();
+                ctx.moveTo(cave.x - groundCrackWidth/2, cave.y);
+                ctx.lineTo(cave.x + groundCrackWidth/2, cave.y);
+                ctx.lineTo(cave.x, cave.y + 200);
+                ctx.fill();
+            }
+        }
+
+        platforms.forEach(p => {
+            if (p.type === 'ground') {
+                ctx.fillStyle = '#10B981'; ctx.fillRect(p.x, p.y, p.w, 20);
+                ctx.fillStyle = '#92400E'; ctx.fillRect(p.x, p.y+20, p.w, p.h);
+            } else {
+                ctx.fillStyle = '#B45309'; ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.strokeStyle = '#78350F'; ctx.lineWidth = 2; ctx.strokeRect(p.x, p.y, p.w, p.h);
+            }
+        });
+
+        enemies.forEach(e => drawEagle(e));
+
+        const time = Date.now() / 200;
+        items.forEach(item => {
+            if (item.active && !item.collected) {
+                ctx.globalAlpha = item.cooldown > 0 ? 0.3 : 1.0;
+                const floatY = Math.sin(time + item.floatOffset) * 5;
+                ctx.fillStyle = '#F59E0B'; ctx.fillRect(item.x - 15, item.y - 15 + floatY, 30, 30);
+                ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.strokeRect(item.x - 15, item.y - 15 + floatY, 30, 30);
+                ctx.fillStyle = '#FFF'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; 
+                ctx.fillText("?", item.x, item.y + 8 + floatY);
+                ctx.globalAlpha = 1.0; 
+            }
+        });
+
+        if (!player.flash) drawPlayer(player.x, player.y, player.w, player.h, player.facingRight);
+
+        ctx.restore();
+    }
+
+    // 繪製大猩猩魔王
+    function drawBoss(x, y, state) {
+        const bx = x; 
+        const by = y - 100; 
+        
+        ctx.save();
+        ctx.translate(bx, by);
+
+        // 身體
+        ctx.fillStyle = '#374151';
+        ctx.beginPath(); ctx.ellipse(0, 0, 60, 50, 0, 0, Math.PI*2); ctx.fill();
+        // 頭
+        ctx.beginPath(); ctx.arc(0, -40, 30, 0, Math.PI*2); ctx.fill();
+        // 臉
+        ctx.fillStyle = '#4B5563';
+        ctx.beginPath(); ctx.ellipse(0, -35, 20, 15, 0, 0, Math.PI*2); ctx.fill();
+        // 眼睛 (紅眼)
+        ctx.fillStyle = '#EF4444';
+        ctx.beginPath(); ctx.arc(-10, -40, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(10, -40, 5, 0, Math.PI*2); ctx.fill();
+
+        // 手臂動畫
+        ctx.fillStyle = '#374151';
+        if (state === 'IDLE') {
+            ctx.beginPath(); ctx.ellipse(-60, 10, 15, 40, 0.5, 0, Math.PI*2); ctx.fill(); // 左手
+            ctx.beginPath(); ctx.ellipse(60, 10, 15, 40, -0.5, 0, Math.PI*2); ctx.fill(); // 右手
+        } else if (state === 'WINDUP') {
+            ctx.beginPath(); ctx.ellipse(-60, -40, 15, 50, -0.5, 0, Math.PI*2); ctx.fill(); 
+            ctx.beginPath(); ctx.ellipse(60, -40, 15, 50, 0.5, 0, Math.PI*2); ctx.fill();
+        } else if (state === 'SMASH') {
+            ctx.beginPath(); ctx.ellipse(-50, 40, 15, 40, 0.2, 0, Math.PI*2); ctx.fill(); 
+            ctx.beginPath(); ctx.ellipse(50, 40, 15, 40, -0.2, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#FFF'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(0, 80, 40, Math.PI, 0); ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function drawEagle(e) {
+        ctx.save();
+        ctx.translate(e.x + e.w/2, e.y + e.h/2);
+        if (e.vx > 0) ctx.scale(-1, 1); 
+        ctx.fillStyle = '#3E2723'; ctx.beginPath(); ctx.ellipse(0, 0, 20, 10, 0, 0, Math.PI*2); ctx.fill();
+        const wingY = Math.sin(Date.now() / 100) * 15;
+        ctx.beginPath(); ctx.moveTo(-5, -5); ctx.quadraticCurveTo(0, -25 + wingY, 15, -5); 
+        ctx.lineWidth = 3; ctx.strokeStyle = '#3E2723'; ctx.stroke();
+        ctx.beginPath(); ctx.arc(-15, -5, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#FBBF24'; ctx.beginPath(); ctx.moveTo(-20, -5); ctx.lineTo(-28, 0); ctx.lineTo(-20, 5); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(-18, -7, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(-19, -7, 1, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+
+    function drawPlayer(x, y, w, h, facingRight) {
+        ctx.save();
+        if (player.talking) {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(x - 60, y - 60, 160, 40); 
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center'; 
+            ctx.textBaseline = 'middle'; 
+            ctx.fillText(player.talking, x + 20, y - 40); 
+            ctx.textAlign = 'start'; 
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        if (!facingRight) { ctx.translate(x + w, y); ctx.scale(-1, 1); x = 0; y = 0; } 
+        else { ctx.translate(x, y); x = 0; y = 0; }
+
+        const hasPants = inventory.has(0);
+        const hasShirt = inventory.has(1);
+        const hasHat = inventory.has(2);
+        const hasBag = inventory.has(3);
+
+        if (hasBag) { ctx.fillStyle = '#DC2626'; ctx.fillRect(-5, 30, 10, 25); }
+
+        ctx.fillStyle = '#FFE0BD'; ctx.fillRect(5, 0, 30, 25);
+        ctx.fillStyle = '#FFE0BD'; ctx.fillRect(5, 25, 30, 20);
+        
+        if (hasShirt) { ctx.fillStyle = '#3B82F6'; ctx.fillRect(5, 25, 30, 20); } 
+        else { ctx.fillStyle = '#FFF'; ctx.fillRect(5, 25, 30, 20); }
+
+        ctx.fillStyle = '#FFE0BD'; ctx.fillRect(15, 25, 8, 15); 
+
+        if (hasPants) { ctx.fillStyle = '#1E3A8A'; ctx.fillRect(5, 45, 30, 10); ctx.fillRect(8, 55, 8, 5); ctx.fillRect(24, 55, 8, 5); } 
+        else { ctx.fillStyle = '#FFF'; ctx.fillRect(5, 45, 30, 8); ctx.fillStyle = '#FFE0BD'; ctx.fillRect(8, 53, 8, 7); ctx.fillRect(24, 53, 8, 7); }
+
+        if (!hasHat) { ctx.fillStyle = '#3E2723'; ctx.fillRect(5, 0, 30, 8); ctx.fillRect(5, 0, 5, 20); } 
+        else { ctx.fillStyle = '#F59E0B'; ctx.fillRect(3, -5, 34, 15); ctx.fillRect(20, -5, 20, 5); }
+        
+        ctx.fillStyle = 'black'; ctx.fillRect(22, 10, 4, 4);
+
+        ctx.restore();
+    }
+
+    // --- 結局繪圖系統 (修正版) ---
+    function drawEndingScene() {
+        // 將主角繪製位置往下移
+        const groundY = canvas.height * 0.85; 
+        const cx = canvas.width / 2;
+        const cy = groundY; 
+
+        // VICTORY (Perfect)
+        if (endingType === 'VICTORY') {
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#60A5FA'); grad.addColorStop(1, '#93C5FD');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#FCD34D'; ctx.beginPath(); ctx.arc(canvas.width - 100, 100, 60, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#10B981'; ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            ctx.fillStyle = '#F59E0B';
+            for(let i=0; i<15; i++) {
+                ctx.beginPath(); 
+                ctx.arc(cx - 100 + i*15, groundY + 10 - (i%3)*5, 8, 0, Math.PI*2); 
+                ctx.fill();
+            }
+
+            ctx.save(); ctx.beginPath();
+            ctx.moveTo(0,0); ctx.lineTo(canvas.width, 0); ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height);
+            ctx.arc(cx, cy - 80, 200, 0, Math.PI*2, true); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill(); ctx.restore();
+
+            ctx.save(); ctx.translate(cx, cy);
+            drawSimpleBoy(0, 0, true, true, true, true, 'YA');
+            ctx.restore();
+            return;
+        }
+
+        // --- LOVE ENDINGS (NEW) ---
+        if (endingType === 'LOVE_FOREVER' || endingType === 'LOVE_YEAR') {
+            // 粉紅背景
+            ctx.fillStyle = '#FBCFE8'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 地板
+            ctx.fillStyle = '#10B981'; ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            // 愛心背景
+            ctx.fillStyle = 'rgba(236, 72, 153, 0.3)';
+            for(let i=0; i<20; i++) {
+                let lx = (i * 50) % canvas.width;
+                let ly = (i * 70) % (canvas.height/2);
+                ctx.beginPath(); ctx.arc(lx, ly, 10, 0, Math.PI*2); ctx.fill();
+            }
+
+            ctx.save(); ctx.translate(cx - 50, cy);
+            drawSimpleBoy(0, 0, true, true, true, true, 'NORMAL');
+            ctx.restore();
+
+            ctx.save(); ctx.translate(cx + 50, cy);
+            drawBoss(0, 100, 'IDLE'); // 魔王在旁邊
+            // 魔王臉紅
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.5)'; 
+            ctx.beginPath(); ctx.arc(-15, -130, 10, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(15, -130, 10, 0, Math.PI*2); ctx.fill();
+            
+            // 大愛心
+            ctx.fillStyle = '#EC4899';
+            ctx.beginPath(); ctx.arc(0, -180, 30, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+
+            if (endingType === 'LOVE_YEAR') {
+                // 畫手錶特寫意象 (簡化)
+                ctx.fillStyle = '#333'; ctx.font = '40px Arial'; ctx.fillText("🕒", cx-20, cy-120);
+            }
+            return;
+        }
+
+        // --- Bad/Normal Endings ---
+        ctx.fillStyle = '#4B5563'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.strokeStyle = 'rgba(173, 216, 230, 0.6)'; ctx.lineWidth = 1;
+        rain.forEach(r => {
+            r.y += r.v; if (r.y > canvas.height) r.y = -10;
+            ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + r.l); ctx.stroke();
+        });
+
+        ctx.fillStyle = '#10B981'; ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+        
+        if (endingType === 'TRAPPED' || endingType === 'FROZEN') {
+            ctx.fillStyle = 'rgba(30, 64, 175, 0.6)'; ctx.fillRect(0, groundY - 20, canvas.width, 100);
+        }
+
+        ctx.save(); ctx.translate(cx, cy);
+        
+        if (endingType === 'BOMB_HEAL') {
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.arc(0, -50, 100, 0, Math.PI*2); ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+            drawSimpleBoy(0, 0, true, true, true, true, 'NORMAL');
+            ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(-30, 0, 5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(30, -20, 8, 0, Math.PI*2); ctx.fill();
+        }
+        else if (endingType === 'BOMB_HURT') { drawSimpleBoy(0, 10, true, true, true, true, 'HURT'); }
+        else if (endingType === 'DIGGING_END') {
+            drawSimpleBoy(0, 10, true, true, true, true, 'DIG');
+            ctx.fillStyle = '#9CA3AF'; ctx.fillRect(15, -30, 5, 40); ctx.fillRect(10, 10, 15, 15); 
+            ctx.fillStyle = '#92400E'; ctx.beginPath(); ctx.arc(30, 20, 15, 0, Math.PI, true); ctx.fill();
+        }
+        else if (endingType === 'TRAPPED') {
+            ctx.restore();
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save(); ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2 + 50, 100, 0, Math.PI*2); ctx.clip();
+            ctx.fillStyle = '#4B5563'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#10B981'; ctx.fillRect(0, canvas.height/2 + 80, canvas.width, 100);
+            ctx.fillStyle = 'rgba(30, 64, 175, 0.6)'; ctx.fillRect(0, canvas.height/2 + 60, canvas.width, 100);
+            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(canvas.width/2 + 80, canvas.height/2, 40, 30, 0, 0, Math.PI*2); ctx.fill();
+            ctx.translate(canvas.width/2, canvas.height/2 + 20);
+            drawSimpleBoy(0, 0, true, true, true, true, 'SIT');
+            ctx.restore();
+            return;
+        }
+        else if (endingType === 'FROZEN') {
+            ctx.save(); ctx.fillStyle = '#93C5FD'; ctx.globalAlpha = 0.5; ctx.fillRect(-50, -100, 100, 150); ctx.restore();
+            drawSimpleBoy(0, 0, true, true, true, true, 'FROZEN');
+            ctx.fillStyle = '#FFF'; ctx.font = '20px Arial'; ctx.fillText("好冷...", -20, -80);
+        }
+        else if (endingType === 'DEAD') {
+            ctx.save(); ctx.rotate(-Math.PI / 2); 
+            drawSimpleBoy(-30, 0, false, false, false, false, 'DEAD'); 
+            ctx.restore();
+            ctx.fillStyle = '#1E3A8A'; ctx.fillRect(-60, 10, 20, 10); 
+            ctx.fillStyle = '#3B82F6'; ctx.fillRect(40, 10, 20, 20); 
+            ctx.fillStyle = '#F59E0B'; ctx.fillRect(-20, -50, 20, 10); 
+        }
+
+        ctx.restore();
+    }
+
+    function drawSimpleBoy(x, y, pants, shirt, hat, bag, pose) {
+        ctx.fillStyle = '#FFE0BD';
+        const bodyY = y - 60; 
+
+        if (pose === 'YA') {
+            ctx.fillRect(x-15, bodyY, 30, 40); 
+            if(shirt) { ctx.fillStyle = '#3B82F6'; ctx.fillRect(x-15, bodyY, 30, 20); }
+            else { ctx.fillStyle = '#FFF'; ctx.fillRect(x-15, bodyY, 30, 20); }
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-25, bodyY-10, 10, 20); ctx.fillRect(x+15, bodyY-10, 10, 20); 
+            
+            if(pants) {
+                ctx.fillStyle = '#1E3A8A'; ctx.fillRect(x-15, bodyY+40, 30, 10); ctx.fillRect(x-12, bodyY+50, 8, 10); ctx.fillRect(x+4, bodyY+50, 8, 10);    
+            } else {
+                ctx.fillStyle = '#FFF'; ctx.fillRect(x-15, bodyY+40, 30, 8); ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-12, bodyY+48, 8, 12); ctx.fillRect(x+4, bodyY+48, 8, 12);
+            }
+            if (bag) { ctx.fillStyle = '#DC2626'; ctx.fillRect(x-5, bodyY+5, 20, 30); }
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY-25, 30, 25);
+            ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(x-5, bodyY-15, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+5, bodyY-15, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x, bodyY-10, 5, 0, Math.PI); ctx.stroke();
+        }
+        else if (pose === 'HURT') {
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY+10, 30, 30);
+            if(shirt) { ctx.fillStyle = '#3B82F6'; ctx.fillRect(x-15, bodyY+10, 30, 20); }
+            ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(x-5, bodyY+20, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(10, -35, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY-15, 30, 25);
+            ctx.fillStyle = 'black'; ctx.fillText("><", x-10, bodyY-5);
+        }
+        else if (pose === 'DIG') {
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY+20, 30, 30); 
+            if(shirt) { ctx.fillStyle = '#3B82F6'; ctx.fillRect(x-15, bodyY+20, 30, 20); }
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY-5, 30, 25); 
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x+10, bodyY+30, 10, 10);
+        }
+        else if (pose === 'FROZEN') {
+            ctx.fillStyle = '#93C5FD'; 
+            ctx.fillRect(x-15, bodyY, 30, 40);
+            if(shirt) { ctx.fillStyle = '#3B82F6'; ctx.fillRect(x-15, bodyY, 30, 20); }
+            ctx.fillStyle = '#93C5FD'; ctx.fillRect(x-15, bodyY-25, 30, 25);
+            ctx.fillStyle = 'black'; ctx.fillText("~~", x-10, bodyY-15);
+        }
+        else if (pose === 'DEAD') {
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY, 30, 40);
+            ctx.fillStyle = '#FFF'; ctx.fillRect(x-15, bodyY, 30, 20); 
+            ctx.fillStyle = '#FFF'; ctx.fillRect(x-15, bodyY+20, 30, 10); 
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY-25, 30, 25);
+            ctx.fillStyle = 'black'; ctx.font = '20px Arial'; ctx.fillText("X X", x-15, bodyY-10);
+        }
+        else if (pose === 'SIT') {
+             ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY+25, 30, 25);
+             if(shirt) ctx.fillStyle = '#3B82F6'; ctx.fillRect(x-20, bodyY+50, 40, 30);
+             if(pants) ctx.fillStyle = '#1E3A8A'; ctx.fillRect(x-25, bodyY+65, 10, 20);
+        }
+        else { // NORMAL
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY, 30, 40);
+            if(shirt) { ctx.fillStyle = '#3B82F6'; ctx.fillRect(x-15, bodyY, 30, 20); }
+            if(pants) { ctx.fillStyle = '#1E3A8A'; ctx.fillRect(x-15, bodyY+40, 30, 10); ctx.fillRect(x-12, bodyY+50, 8, 10); ctx.fillRect(x+4, bodyY+50, 8, 10); } 
+            else { ctx.fillStyle = '#FFF'; ctx.fillRect(x-15, bodyY+40, 30, 8); ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-12, bodyY+48, 8, 12); ctx.fillRect(x+4, bodyY+48, 8, 12); }
+            ctx.fillStyle = '#FFE0BD'; ctx.fillRect(x-15, bodyY-25, 30, 25);
+            ctx.fillStyle = 'black'; ctx.fillRect(x-5, bodyY-15, 4, 4); ctx.fillRect(x+5, bodyY-15, 4, 4);
+        }
+
+        if (hat && pose !== 'DEAD') {
+            ctx.fillStyle = '#F59E0B'; 
+            let hy = (pose === 'HURT') ? bodyY-20 : bodyY-30;
+            ctx.fillRect(x-18, hy, 36, 10);
+        }
+    }
+
+    function checkEnding() {
+        document.getElementById('fade-overlay').style.opacity = 0;
+        
+        const hasBasicGear = inventory.has(0) && inventory.has(1) && inventory.has(2) && inventory.has(3);
+        
+        if (!hasBasicGear) { triggerEnding('DEAD_NO_GEAR'); return; }
+        
+        if (inventory.has(7) && !inventory.has(14) && !inventory.has(12) && !inventory.has(11) && !inventory.has(10)) {
+             if (inventory.has(4)) {
+                 triggerEnding('LOVE_YEAR'); 
+             } else {
+                 triggerEnding('LOVE_FOREVER'); 
+             }
+             return;
+        }
+
+        if (inventory.size >= 15) { triggerEnding('PERFECT_VICTORY'); return; }
+        if (inventory.has(14)) { triggerEnding('SECRET_ESCAPE'); return; }
+        if (inventory.has(12)) { triggerEnding('BRIBE_BOSS'); return; }
+        
+        if (inventory.has(11)) { 
+            if (inventory.has(13)) { triggerEnding('BOMB_HEAL'); } 
+            else { triggerEnding('BOMB_HURT'); }
+            return;
+        }
+
+        if (inventory.has(10)) { 
+            triggerEnding('DIGGING_END');
+            return;
+        }
+
+        const hasWarmGear = inventory.has(5) || inventory.has(6);
+
+        if (!hasWarmGear) {
+            triggerEnding('FROZEN'); 
+        } else if (inventory.has(13)) { 
+            triggerEnding('TRAPPED_SAFE'); 
+        } else { 
+            triggerEnding('TRAPPED_FADE'); 
+        }
+    }
+
+    function triggerEnding(type) {
+        if (type === 'PERFECT_VICTORY') endingType = 'VICTORY';
+        else if (type === 'SECRET_ESCAPE' || type === 'BRIBE_BOSS') endingType = 'VICTORY';
+        else if (type === 'BOMB_HEAL') endingType = 'BOMB_HEAL';
+        else if (type === 'BOMB_HURT') endingType = 'BOMB_HURT';
+        else if (type === 'DIGGING_END') endingType = 'DIGGING_END';
+        else if (type === 'TRAPPED_SAFE' || type === 'TRAPPED_FADE') endingType = 'TRAPPED';
+        else if (type === 'FROZEN') endingType = 'FROZEN';
+        else if (type === 'LOVE_FOREVER' || type === 'LOVE_YEAR') endingType = type;
+        else endingType = 'DEAD'; 
+
+        gameState = 'ENDING_SCENE';
+        
+        document.querySelector('.ui-layer').style.display = 'none';
+        document.getElementById('damage-overlay').style.display = 'none';
+        
+        const endScreen = document.getElementById('end-screen');
+        const endTitle = document.getElementById('end-title');
+        const endMsg = document.getElementById('end-msg');
+        endScreen.style.display = 'flex';
+
+        switch(type) {
+            case 'PERFECT_VICTORY':
+                endTitle.innerText = "完美大結局！"; endTitle.style.color = "#F59E0B";
+                endMsg.innerText = "太厲害了！你收集了所有道具！\n魔王看到你全副武裝，還帶著一大堆寶物，\n嚇得直接讓路。你揹著滿滿的戰利品，走向光明的未來！";
+                break;
+            case 'LOVE_FOREVER':
+                endTitle.innerText = "人獸情未了"; endTitle.style.color = "#EC4899";
+                endMsg.innerText = "你拿出了【食物】請魔王吃。魔王深受感動，以為這是求婚禮物！\n於是你們在洞穴裡過著幸福快樂的日子，長相廝守...";
+                break;
+            case 'LOVE_YEAR':
+                endTitle.innerText = "一年之約"; endTitle.style.color = "#EC4899";
+                endMsg.innerText = "你拿出了【食物】請魔王吃，魔王以為是愛意！\n但因為你戴著【手錶】，魔王發現你很在意時間。\n牠決定只跟你廝守一年，之後就放你走。";
+                break;
+            case 'DEAD_FALL':
+                endTitle.innerText = "意外身亡"; endTitle.style.color = "#EF4444";
+                endMsg.innerText = "你掉進了海裡，身上沒有足夠的裝備..."; break;
+            case 'DEAD_NO_GEAR':
+                endTitle.innerText = "慘遭秒殺"; endTitle.style.color = "#EF4444";
+                endMsg.innerText = "魔王一拳打破地板！\n因為你身上連基本的【衣褲帽包】都沒有，摔下去直接重傷不治...\n\n(提示：必須集齊前4關裝備才能存活)"; break;
+            case 'FROZEN':
+                endTitle.innerText = "失溫凍死"; endTitle.style.color = "#3B82F6";
+                endMsg.innerText = "颱風帶來暴雨，洞裡淹水了！\n因為你沒有【雨衣】或【外套】，在冰冷的水中失溫而死..."; break;
+            case 'TRAPPED_FADE':
+                endTitle.innerText = "受困洞底"; endTitle.style.color = "#9CA3AF";
+                endMsg.innerText = "雖然有防寒裝備讓你沒被凍死，但沒有工具可以出去，意識逐漸模糊..."; break;
+            case 'TRAPPED_SAFE':
+                endTitle.innerText = "長期抗戰"; endTitle.style.color = "#60A5FA";
+                endMsg.innerText = "你掉進了洞裡出不去。\n幸好你有防寒衣物和【急救箱】，可以在洞裡健康地活很久，等待救援！"; break;
+            case 'DIGGING_END':
+                endTitle.innerText = "愚公移山"; endTitle.style.color = "#D97706";
+                endMsg.innerText = "雖然沒有炸彈，但你拿出了【鏟子】！\n你開始瘋狂挖掘地道，相信總有一天能挖到基隆夜市！"; break;
+            case 'BOMB_HURT':
+                endTitle.innerText = "驚險逃脫"; endTitle.style.color = "#F59E0B";
+                endMsg.innerText = "你用【炸彈】炸開了洞口逃生！\n但是爆炸波及到了你，受了點傷逃出去了。"; break;
+            case 'BOMB_HEAL':
+                endTitle.innerText = "完美爆破"; endTitle.style.color = "#10B981";
+                endMsg.innerText = "你用【炸彈】炸開洞口，並馬上用【急救箱】處理傷口。\n你毫髮無傷地逃出生天！帥氣！"; break;
+            case 'BRIBE_BOSS':
+                endTitle.innerText = "有錢能使鬼推磨"; endTitle.style.color = "#FCD34D";
+                endMsg.innerText = "掉下去之前，你向魔王丟出了【錢幣】。\n魔王收下了錢，把你從洞裡拉了上來。這就是資本的力量！"; break;
+            case 'SECRET_ESCAPE':
+                endTitle.innerText = "發現密道"; endTitle.style.color = "#8B5CF6";
+                endMsg.innerText = "掉進洞裡後，你發現了一個鎖住的門。\n你用【鑰匙】打開了它，發現了通往基隆夜市的密道！太幸運了！"; break;
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('item-count').innerText = inventory.size;
+        const list = document.getElementById('inventory-list');
+        list.innerHTML = '';
+        inventory.forEach(id => {
+            const name = quizData.find(d=>d.id===id).item;
+            const span = document.createElement('span');
+            span.className = 'inv-item'; span.innerText = name;
+            list.appendChild(span);
+        });
+    }
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        initLevel();
+        gameState = 'PLAYING';
+        gameLoop();
+    }
+
+    function triggerQuiz(item) {
+        gameState = 'QUIZ'; currentQuizItem = item;
+        const q = quizData.find(d => d.id === item.id);
+        
+        document.getElementById('q-reward').innerText = "獲得：" + q.item;
+        document.getElementById('q-desc').innerText = q.desc;
+        document.getElementById('q-text').innerText = q.q;
+        
+        const optsDiv = document.getElementById('q-options');
+        optsDiv.innerHTML = '';
+        q.opts.forEach((opt, idx) => {
+            const btn = document.createElement('div');
+            btn.className = 'btn-option'; btn.innerText = opt;
+            btn.onclick = () => answerQuiz(idx, q.ans);
+            optsDiv.appendChild(btn);
+        });
+        document.getElementById('quiz-modal').style.display = 'flex';
+        keys.left = false; keys.right = false; keys.up = false;
+    }
+
+    function answerQuiz(selectedIdx, correctIdx) {
+        if (selectedIdx === correctIdx) {
+            currentQuizItem.collected = true;
+            inventory.add(currentQuizItem.id);
+            alert(`答對了！獲得【${currentQuizItem.name}】！`); 
+        } else {
+            currentQuizItem.active = false;
+            currentQuizItem.collected = false; 
+            currentQuizItem.active = true;
+            currentQuizItem.cooldown = 180; 
+            alert(`答錯囉！【${currentQuizItem.name}】掉了...\n正確答案是：${quizData.find(d=>d.id===currentQuizItem.id).opts[correctIdx]}\n(道具暫時凍結，請稍後再試！)`);
+        }
+        document.getElementById('quiz-modal').style.display = 'none';
+        updateUI();
+        gameState = 'PLAYING';
+        player.y -= 10; 
+    }
+
+</script>
+</body>
+</html>
