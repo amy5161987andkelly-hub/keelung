@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D 建築平面圖設計器 V35.1 變形與風水圈選版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .canvas-grid { background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 24px 24px; background-color: #f8fafc; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden select-none">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0 shadow z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 p-2 rounded-lg text-white shadow-md">
+                <i class="fa-solid fa-compass-drafting text-sm"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm tracking-wide flex items-center gap-2">
+                    2D 建築平面圖設計器 <span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded border border-emerald-500/30">V35.1 穩定版</span>
+                </h1>
+                <p class="text-[11px] text-slate-400">物件自由拉伸 • 燈具家電擴充 • 正確房型格局 • 畫布實時煞氣圈選</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- 復原 / 重做 按鈕組 -->
+            <div class="flex items-center space-x-1 bg-slate-800 p-1 rounded-lg border border-slate-700 mr-1">
+                <button id="btn-undo" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:hover:bg-slate-700 text-slate-200 text-xs font-medium rounded transition flex items-center gap-1" title="上一步 (Ctrl+Z)" disabled>
+                    <i class="fa-solid fa-rotate-left"></i> 上一步
+                </button>
+                <button id="btn-redo" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:hover:bg-slate-700 text-slate-200 text-xs font-medium rounded transition flex items-center gap-1" title="下一步 (Ctrl+Y)" disabled>
+                    <i class="fa-solid fa-rotate-right"></i> 下一步
+                </button>
+            </div>
+
+            <!-- 選取物件懸浮工具列（含獨立長寬拉伸變形） -->
+            <div id="floating-toolbar" class="hidden items-center space-x-1 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700 mr-2 shadow-lg">
+                <span id="selected-item-title" class="text-[11px] font-semibold text-blue-300 px-1 truncate max-w-[90px]">未選取</span>
+                <div class="h-3 w-[1px] bg-slate-700"></div>
+                <!-- 自由變形拉伸 -->
+                <button id="btn-item-w-inc" class="px-1.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-[11px] text-slate-200" title="加寬"><i class="fa-solid fa-arrows-left-right"></i> 寬+</button>
+                <button id="btn-item-w-dec" class="px-1.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-[11px] text-slate-200" title="變窄">寬-</button>
+                <button id="btn-item-h-inc" class="px-1.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-[11px] text-slate-200" title="加長"><i class="fa-solid fa-arrows-up-down"></i> 長+</button>
+                <button id="btn-item-h-dec" class="px-1.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-[11px] text-slate-200" title="縮短">長-</button>
+                <button id="btn-item-rotate" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200" title="旋轉 45°"><i class="fa-solid fa-rotate"></i></button>
+                <button id="btn-item-delete" class="p-1.5 bg-red-900/60 hover:bg-red-800 text-red-200 rounded text-xs" title="刪除"><i class="fa-solid fa-trash"></i></button>
+            </div>
+
+            <input type="file" id="file-import" accept="image/png, image/jpeg, image/jpg" class="hidden">
+            
+            <button id="btn-import" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded shadow transition flex items-center gap-1"><i class="fa-solid fa-file-import"></i> 匯入底圖</button>
+            <button id="btn-export" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded shadow transition flex items-center gap-1"><i class="fa-solid fa-download"></i> 匯出圖檔</button>
+            <button id="btn-clear" class="px-2.5 py-1.5 bg-red-950/60 hover:bg-red-900 text-red-300 text-xs rounded transition flex items-center gap-1 border border-red-800/60"><i class="fa-solid fa-trash-can"></i> 清空</button>
+            <button id="btn-fengshui" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow transition flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i> 風水檢測</button>
+        </div>
+    </header>
+
+    <!-- 主畫面區 -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- 左側控制面板 -->
+        <aside class="w-[280px] bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto p-3 space-y-4 z-10">
+            <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">繪圖與選擇工具</span>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button id="mode-select" class="px-2 py-1.5 bg-blue-600 text-white rounded text-xs font-medium flex items-center justify-center gap-1 shadow"><i class="fa-solid fa-arrow-pointer"></i> 移動/選取</button>
+                    <button id="mode-eraser" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-medium flex items-center justify-center gap-1 border border-slate-700"><i class="fa-solid fa-eraser"></i> 橡皮擦</button>
+                </div>
+            </div>
+
+            <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">牆體結構工具</span>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button id="wall-load" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-xs text-left border border-slate-700 flex flex-col">
+                        <span class="font-bold text-slate-200 flex items-center gap-1"><i class="fa-solid fa-square text-slate-300"></i> 主結構牆</span>
+                        <span class="text-[9px] text-slate-400">黑色實心 (12px)</span>
+                    </button>
+                    <button id="wall-part" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-xs text-left border border-slate-700 flex flex-col">
+                        <span class="font-bold text-slate-200 flex items-center gap-1"><i class="fa-solid fa-grip-lines text-blue-400"></i> 輕隔間牆</span>
+                        <span class="text-[9px] text-slate-400">藍色虛線 (8px)</span>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider block mb-1.5"><i class="fa-solid fa-shapes"></i> 預設房型格局範本</span>
+                <div class="grid grid-cols-1 gap-1.5">
+                    <button onclick="applyTemplate('square')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-between">
+                        <span>正方形毛胚套房</span><i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <button onclick="applyTemplate('rectangle')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-between">
+                        <span>長方形毛胚屋</span><i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <button onclick="applyTemplate('missing_corner')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-between">
+                        <span>L 型 / 缺角型</span><i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <button onclick="applyTemplate('two_rooms')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-between">
+                        <span>標準兩房一廳格局</span><i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <button onclick="applyTemplate('three_rooms')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-between">
+                        <span>完整三房兩廳格局</span><i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右側畫布與圖庫選單區 -->
+        <main class="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+            
+            <!-- 9 大分類頁籤 -->
+            <nav id="category-bar" class="bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center space-x-2 overflow-x-auto shrink-0">
+                <button class="cat-btn px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold whitespace-nowrap shadow flex items-center gap-1.5" data-cat="doors"><i class="fa-solid fa-door-open"></i> 1. 門窗圖示</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="bath"><i class="fa-solid fa-bath"></i> 2. 衛浴設備</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="kitchen"><i class="fa-solid fa-fire-burner"></i> 3. 廚房設備</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="bed_storage"><i class="fa-solid fa-bed"></i> 4. 床臥沙發與櫃體</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="dining"><i class="fa-solid fa-chair"></i> 5. 桌椅餐廳</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="lighting"><i class="fa-solid fa-lightbulb"></i> 6. 燈具照明</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="appliance"><i class="fa-solid fa-tv"></i> 7. 家電設備</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="partition"><i class="fa-solid fa-border-all"></i> 8. 屏風隔斷</button>
+                <button class="cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5" data-cat="plants"><i class="fa-solid fa-seedling"></i> 9. 植栽開運</button>
+            </nav>
+
+            <!-- 精細圖示選單區 -->
+            <div class="bg-slate-900/90 border-b border-slate-800 px-3 py-2 shrink-0 overflow-x-auto">
+                <div id="palette-grid" class="flex space-x-2"></div>
+            </div>
+
+            <!-- 主畫布放置區 -->
+            <div class="flex-1 canvas-grid overflow-auto flex items-center justify-center p-6">
+                <div class="flex flex-col items-center">
+                    <div id="label-canvas1" class="text-xs font-bold text-blue-400 mb-1">主設計畫布 (可匯入 JPG/PNG 圖檔對齊)</div>
+                    <div class="relative bg-white shadow-2xl rounded-lg border border-slate-300 w-[680px] h-[750px] shrink-0">
+                        <canvas id="canvas-1" width="680" height="750" class="absolute inset-0 cursor-crosshair"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 動態風水檢測報告彈窗 -->
+    <div id="fengshui-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="bg-slate-800 px-5 py-3.5 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i> 風水檢測報告與煞氣位置圈選
+                </h3>
+                <button onclick="closeFengShuiModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-4 overflow-y-auto max-h-[65vh]">
+                <div class="flex items-center justify-between bg-slate-800/80 p-3.5 rounded-xl border border-slate-700">
+                    <div>
+                        <div class="text-[11px] text-slate-400 font-semibold">當前配置評分</div>
+                        <div id="fs-score" class="text-3xl font-black text-emerald-400 mt-0.5">-- 分</div>
+                    </div>
+                    <div id="fs-badge" class="px-3 py-1 bg-emerald-900/50 text-emerald-300 text-xs font-semibold rounded-full border border-emerald-600/50">檢測中</div>
+                </div>
+                <div id="fs-details" class="space-y-2 text-xs"></div>
+            </div>
+            <div class="bg-slate-800/80 px-5 py-3 border-t border-slate-700 flex justify-end">
+                <button onclick="closeFengShuiModal()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition">確定並回到畫布檢視紅圈標記</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 9 大組件圖庫
+        const categories = {
+            doors: [
+                { id: 'door_single', name: '單開房門/大門' },
+                { id: 'door_double', name: '雙開大門' },
+                { id: 'door_sliding', name: '推拉門/落地窗' },
+                { id: 'win_single', name: '單開採光窗' },
+                { id: 'win_double', name: '雙開外推窗' },
+                { id: 'win_large', name: '景觀大對流窗' }
+            ],
+            bath: [
+                { id: 'toilet_sit', name: '坐式馬桶' },
+                { id: 'basin_wall', name: '壁掛洗手台' },
+                { id: 'bathtub', name: '獨立浴缸' },
+                { id: 'shower_room', name: '乾濕分離淋浴區' },
+                { id: 'mirror_cabinet', name: '衛浴鏡面/鏡櫃' }
+            ],
+            kitchen: [
+                { id: 'stove_gas', name: '雙頭瓦斯爐具' },
+                { id: 'sink_double', name: '雙槽洗滌水槽' },
+                { id: 'sink_single', name: '單槽洗滌水槽' },
+                { id: 'fridge_double', name: '對開大型冰箱' },
+                { id: 'fridge_single', name: '單門標準冰箱' },
+                { id: 'cabinet', name: '廚房料理系統櫃' }
+            ],
+            bed_storage: [
+                { id: 'bed_double', name: '雙人床位' },
+                { id: 'bed_single', name: '單人床位' },
+                { id: 'bedside_table', name: '床頭櫃' },
+                { id: 'sofa_2p', name: '雙人沙發' },
+                { id: 'sofa_l', name: 'L型客廳沙發' },
+                { id: 'tea_table', name: '客廳茶幾' },
+                { id: 'wardrobe', name: '主臥雙門衣櫃' },
+                { id: 'shoe_cabinet', name: '玄關鞋櫃' },
+                { id: 'tv_cabinet', name: '電視視聽櫃' },
+                { id: 'display_cabinet', name: '客廳展示櫃' }
+            ],
+            dining: [
+                { id: 'table_rect', name: '長方形六人餐桌' },
+                { id: 'table_round', name: '圓形合家餐桌' },
+                { id: 'desk_office', name: '書房/辦公桌' },
+                { id: 'office_chair', name: '人體工學椅' }
+            ],
+            lighting: [
+                { id: 'light_recessed', name: '天花板崁燈' },
+                { id: 'light_desk', name: '閱讀檯燈' },
+                { id: 'light_chandelier', name: '客廳水晶吊燈' },
+                { id: 'light_floor', name: '角落落地燈' }
+            ],
+            appliance: [
+                { id: 'tv', name: '液晶電視牆' },
+                { id: 'air_conditioner', name: '室內壁掛空調' },
+                { id: 'washing_machine', name: '陽台滾筒洗衣機' },
+                { id: 'robot_cleaner', name: '掃地機器人' }
+            ],
+            partition: [
+                { id: 'screen_partition', name: '玄關屏風隔斷' },
+                { id: 'entry_cabinet', name: '進門遮擋櫃' },
+                { id: 'virtual_wall', name: '虛擬隔間分界線' }
+            ],
+            plants: [
+                { id: 'plant_tree', name: '招財大型發財樹' },
+                { id: 'plant_potted', name: '開運綠色盆栽' },
+                { id: 'plant_fortune', name: '玄關化煞水生植物' }
+            ]
+        };
+
+        let currentCategory = 'doors';
+        let currentMode = 'select';
+        let activeItemType = null;
+
+        let state1 = { walls: [], items: [], bgImage: null };
+        let selectedItem = null;
+
+        // 風水煞氣紅圈標記陣列
+        let fengShuiHighlights = [];
+
+        // 歷史紀錄堆疊
+        let historyStack = [];
+        let redoStack = [];
+
+        const cv1 = document.getElementById('canvas-1');
+        const ctx1 = cv1.getContext('2d');
+
+        let isDrawingWall = false;
+        let wallStart = null;
+        let currentMousePos = {x: 0, y: 0};
+        let isDraggingItem = false;
+        let dragOffset = {x: 0, y: 0};
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initCategoryBar();
+            loadPalette('doors');
+            applyTemplate('two_rooms', false);
+            setupEventListeners();
+            saveState();
+            requestAnimationFrame(mainLoop);
+        });
+
+        function saveState() {
+            if (historyStack.length > 30) historyStack.shift();
+            historyStack.push(JSON.stringify({
+                walls: state1.walls,
+                items: state1.items
+            }));
+            redoStack = [];
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (historyStack.length <= 1) return;
+            const currentState = historyStack.pop();
+            redoStack.push(currentState);
+            const prevState = JSON.parse(historyStack[historyStack.length - 1]);
+            state1.walls = JSON.parse(JSON.stringify(prevState.walls));
+            state1.items = JSON.parse(JSON.stringify(prevState.items));
+            selectedItem = null;
+            hideToolbar();
+            updateUndoRedoButtons();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            const nextState = redoStack.pop();
+            historyStack.push(nextState);
+            const parsed = JSON.parse(nextState);
+            state1.walls = JSON.parse(JSON.stringify(parsed.walls));
+            state1.items = JSON.parse(JSON.stringify(parsed.items));
+            selectedItem = null;
+            hideToolbar();
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('btn-undo').disabled = historyStack.length <= 1;
+            document.getElementById('btn-redo').disabled = redoStack.length === 0;
+        }
+
+        function initCategoryBar() {
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.cat-btn').forEach(b => {
+                        b.className = 'cat-btn px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs whitespace-nowrap border border-slate-700 flex items-center gap-1.5';
+                    });
+                    btn.className = 'cat-btn px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold whitespace-nowrap shadow flex items-center gap-1.5';
+                    currentCategory = btn.dataset.cat;
+                    loadPalette(currentCategory);
+                });
+            });
+        }
+
+        function loadPalette(cat) {
+            const grid = document.getElementById('palette-grid');
+            grid.innerHTML = '';
+            if (!categories[cat]) return;
+
+            categories[cat].forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-slate-300 hover:border-blue-500 rounded-lg p-1.5 flex flex-col items-center justify-center cursor-pointer shadow-sm hover:shadow transition shrink-0 w-24';
+                card.innerHTML = `
+                    <div class="w-12 h-12 flex items-center justify-center bg-slate-50 rounded border border-slate-200 mb-1">
+                        <canvas width="48" height="48" class="preview-cv" data-id="${item.id}"></canvas>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-800 text-center truncate w-full">${item.name}</span>
+                `;
+                card.addEventListener('click', () => {
+                    currentMode = 'place';
+                    activeItemType = item.id;
+                    document.getElementById('mode-select').className = 'px-2 py-1.5 bg-slate-800 text-slate-300 rounded text-xs flex items-center justify-center gap-1 border border-slate-700';
+                });
+                grid.appendChild(card);
+                renderPreviewCanvas(card.querySelector('.preview-cv'), item.id);
+            });
+        }
+
+        function renderPreviewCanvas(cv, id) {
+            const pctx = cv.getContext('2d');
+            pctx.clearRect(0, 0, 48, 48);
+            pctx.save();
+            pctx.translate(24, 24);
+            drawSymbol(pctx, id, 0, 0, 0.75, 0.75, 0, true);
+            pctx.restore();
+        }
+
+        // 2D 建築圖例繪製引擎
+        function drawSymbol(c, id, x, y, scaleX = 1, scaleY = 1, rotation = 0, isPreview = false) {
+            c.save();
+            if (!isPreview) {
+                c.translate(x, y);
+                c.rotate(rotation);
+                c.scale(scaleX, scaleY);
+            }
+            c.strokeStyle = '#1e293b'; 
+            c.fillStyle = '#ffffff'; 
+            c.lineWidth = 1.8; 
+            c.lineCap = 'round'; 
+            c.lineJoin = 'round';
+
+            switch (id) {
+                // --- 門窗類 ---
+                case 'door_single':
+                    c.strokeRect(-20, -20, 40, 40);
+                    c.fillStyle = '#f8fafc'; c.fillRect(-18, -18, 36, 36);
+                    c.beginPath(); c.moveTo(-18, 18); c.lineTo(-18, -18); c.stroke();
+                    c.lineWidth = 1.2; c.setLineDash([3, 3]); c.strokeStyle = '#2563eb';
+                    c.beginPath(); c.arc(-18, 18, 36, -Math.PI/2, 0); c.stroke();
+                    break;
+
+                case 'door_double':
+                    c.strokeRect(-26, -18, 52, 36);
+                    c.fillStyle = '#f8fafc'; c.fillRect(-24, -16, 48, 32);
+                    c.beginPath(); c.moveTo(-24, 16); c.lineTo(-24, -16); c.stroke();
+                    c.beginPath(); c.moveTo(24, 16); c.lineTo(24, -16); c.stroke();
+                    c.lineWidth = 1.2; c.setLineDash([3, 3]); c.strokeStyle = '#2563eb';
+                    c.beginPath(); c.arc(-24, 16, 24, -Math.PI/2, 0); c.stroke();
+                    c.beginPath(); c.arc(24, 16, 24, -Math.PI, -Math.PI/2); c.stroke();
+                    break;
+
+                case 'door_sliding':
+                    c.strokeRect(-24, -10, 48, 20);
+                    c.fillStyle = '#e0f2fe'; c.fillRect(-22, -8, 44, 16);
+                    c.strokeRect(-20, -6, 24, 5); c.strokeRect(-4, 1, 24, 5);
+                    break;
+
+                case 'win_single':
+                    c.fillStyle = '#e0f2fe'; c.fillRect(-20, -6, 40, 12); c.strokeRect(-20, -6, 40, 12);
+                    c.strokeStyle = '#0284c7'; c.beginPath(); c.moveTo(0, -6); c.lineTo(0, 6); c.stroke();
+                    break;
+
+                case 'win_double':
+                    c.fillStyle = '#bae6fd'; c.fillRect(-24, -7, 48, 14); c.strokeRect(-24, -7, 48, 14);
+                    c.strokeStyle = '#0284c7'; c.beginPath(); c.moveTo(-12, -7); c.lineTo(-12, 7); c.moveTo(12, -7); c.lineTo(12, 7); c.stroke();
+                    c.setLineDash([2, 2]); c.beginPath(); c.arc(-12, -7, 10, 0, Math.PI); c.stroke();
+                    c.beginPath(); c.arc(12, -7, 10, 0, Math.PI); c.stroke();
+                    break;
+
+                case 'win_large':
+                    c.fillStyle = '#7dd3fc'; c.fillRect(-28, -8, 56, 16); c.strokeRect(-28, -8, 56, 16);
+                    c.strokeStyle = '#0369a1'; c.lineWidth = 1.5;
+                    c.strokeRect(-26, -6, 52, 12);
+                    c.beginPath(); c.moveTo(-10, -6); c.lineTo(-5, 6); c.moveTo(5, -6); c.lineTo(10, 6); c.stroke();
+                    break;
+
+                // --- 衛浴設備 ---
+                case 'toilet_sit':
+                    c.fillStyle = '#f1f5f9'; c.strokeRect(-12, -20, 24, 10); c.fillRect(-12, -20, 24, 10);
+                    c.beginPath(); c.arc(0, -15, 2, 0, Math.PI*2); c.stroke();
+                    c.beginPath(); c.ellipse(0, 2, 11, 14, 0, 0, Math.PI*2); c.stroke();
+                    c.beginPath(); c.ellipse(0, 4, 7, 9, 0, 0, Math.PI*2); c.fillStyle = '#e2e8f0'; c.fill(); c.stroke();
+                    break;
+
+                case 'basin_wall':
+                    c.fillStyle = '#f8fafc'; c.strokeRect(-16, -12, 32, 24); c.fillRect(-16, -12, 32, 24);
+                    c.beginPath(); c.ellipse(0, 0, 11, 8, 0, 0, Math.PI*2); c.stroke();
+                    c.fillStyle = '#94a3b8'; c.beginPath(); c.arc(0, -8, 3, 0, Math.PI*2); c.fill();
+                    break;
+
+                case 'bathtub':
+                    c.fillStyle = '#f8fafc';
+                    c.beginPath(); c.roundRect(-28, -16, 56, 32, 8); c.fill(); c.stroke();
+                    c.beginPath(); c.roundRect(-24, -12, 48, 24, 6); c.stroke();
+                    c.beginPath(); c.arc(18, 0, 3, 0, Math.PI*2); c.stroke();
+                    c.strokeRect(22, -3, 4, 6);
+                    break;
+
+                case 'shower_room':
+                    c.fillStyle = '#f0f9ff'; c.strokeRect(-22, -22, 44, 44); c.fillRect(-22, -22, 44, 44);
+                    c.beginPath(); c.arc(-14, -14, 6, 0, Math.PI*2); c.stroke();
+                    c.fillStyle = '#0284c7'; c.beginPath(); c.arc(-14, -14, 2, 0, Math.PI*2); c.fill();
+                    c.strokeRect(10, 10, 8, 8);
+                    break;
+
+                case 'mirror_cabinet':
+                    c.fillStyle = '#38bdf8'; c.fillRect(-20, -6, 40, 12); c.strokeRect(-20, -6, 40, 12);
+                    c.strokeStyle = '#ffffff'; c.beginPath(); c.moveTo(-10, -4); c.lineTo(10, 4); c.stroke();
+                    break;
+
+                // --- 廚房設備 ---
+                case 'stove_gas':
+                    c.fillStyle = '#334155'; c.fillRect(-24, -16, 48, 32); c.strokeRect(-24, -16, 48, 32);
+                    c.strokeStyle = '#ffffff'; c.fillStyle = '#1e293b';
+                    c.beginPath(); c.arc(-12, 0, 9, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.beginPath(); c.moveTo(-12, -9); c.lineTo(-12, 9); c.moveTo(-21, 0); c.lineTo(-3, 0); c.stroke();
+                    c.beginPath(); c.arc(12, 0, 9, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.beginPath(); c.moveTo(12, -9); c.lineTo(12, 9); c.moveTo(3, 0); c.lineTo(21, 0); c.stroke();
+                    break;
+
+                case 'sink_double':
+                    c.fillStyle = '#cbd5e1'; c.fillRect(-26, -16, 52, 32); c.strokeRect(-26, -16, 52, 32);
+                    c.fillStyle = '#f8fafc';
+                    c.strokeRect(-22, -12, 20, 24); c.fillRect(-22, -12, 20, 24);
+                    c.strokeRect(2, -12, 20, 24); c.fillRect(2, -12, 20, 24);
+                    c.beginPath(); c.arc(0, -12, 3, 0, Math.PI*2); c.stroke();
+                    break;
+
+                case 'sink_single':
+                    c.fillStyle = '#cbd5e1'; c.fillRect(-18, -18, 36, 36); c.strokeRect(-18, -18, 36, 36);
+                    c.fillStyle = '#f8fafc'; c.beginPath(); c.roundRect(-14, -14, 28, 28, 4); c.fill(); c.stroke();
+                    c.beginPath(); c.arc(0, -8, 2.5, 0, Math.PI*2); c.stroke();
+                    c.beginPath(); c.arc(0, 2, 3, 0, Math.PI*2); c.fillStyle = '#94a3b8'; c.fill();
+                    break;
+
+                case 'fridge_double':
+                    c.fillStyle = '#e2e8f0'; c.fillRect(-18, -24, 36, 48); c.strokeRect(-18, -24, 36, 48);
+                    c.beginPath(); c.moveTo(0, -24); c.lineTo(0, 24); c.stroke();
+                    c.fillStyle = '#64748b'; c.fillRect(-2, -18, 4, 8);
+                    break;
+
+                case 'fridge_single':
+                    c.fillStyle = '#e2e8f0'; c.beginPath(); c.roundRect(-16, -20, 32, 40, [6, 6, 2, 2]); c.fill(); c.stroke();
+                    c.strokeStyle = '#64748b'; c.beginPath(); c.moveTo(-16, -8); c.lineTo(16, -8); c.stroke();
+                    c.fillStyle = '#475569'; c.fillRect(10, -4, 4, 10);
+                    break;
+
+                case 'cabinet':
+                    c.fillStyle = '#f1f5f9'; c.fillRect(-28, -14, 56, 28); c.strokeRect(-28, -14, 56, 28);
+                    c.beginPath(); c.moveTo(-28, 0); c.lineTo(28, 0); c.stroke();
+                    break;
+
+                // --- 床臥沙發與櫃體 ---
+                case 'bed_double':
+                    c.fillStyle = '#f8fafc'; c.fillRect(-26, -30, 52, 60); c.strokeRect(-26, -30, 52, 60);
+                    c.fillStyle = '#475569'; c.fillRect(-26, -30, 52, 6);
+                    c.fillStyle = '#ffffff';
+                    c.strokeRect(-22, -21, 18, 12); c.fillRect(-22, -21, 18, 12);
+                    c.strokeRect(4, -21, 18, 12); c.fillRect(4, -21, 18, 12);
+                    c.beginPath(); c.moveTo(-26, 2); c.lineTo(26, 2); c.stroke();
+                    break;
+
+                case 'bed_single':
+                    c.fillStyle = '#f8fafc'; c.fillRect(-18, -30, 36, 60); c.strokeRect(-18, -30, 36, 60);
+                    c.fillStyle = '#475569'; c.fillRect(-18, -30, 36, 6);
+                    c.fillStyle = '#ffffff'; c.strokeRect(-13, -21, 26, 12); c.fillRect(-13, -21, 26, 12);
+                    c.beginPath(); c.moveTo(-18, 2); c.lineTo(18, 2); c.stroke();
+                    break;
+
+                case 'bedside_table':
+                    c.fillStyle = '#f1f5f9'; c.fillRect(-12, -12, 24, 24); c.strokeRect(-12, -12, 24, 24);
+                    c.beginPath(); c.arc(0, 0, 4, 0, Math.PI*2); c.stroke();
+                    break;
+
+                case 'sofa_2p':
+                    c.fillStyle = '#e2e8f0'; c.fillRect(-24, -16, 48, 32); c.strokeRect(-24, -16, 48, 32);
+                    c.strokeRect(-24, -16, 48, 8);
+                    c.strokeRect(-24, -16, 8, 32); c.strokeRect(16, -16, 8, 32);
+                    c.beginPath(); c.moveTo(0, -8); c.lineTo(0, 16); c.stroke();
+                    break;
+
+                case 'sofa_l':
+                    c.fillStyle = '#e2e8f0'; c.fillRect(-28, -28, 56, 56); c.strokeRect(-28, -28, 56, 56);
+                    c.strokeRect(-28, -28, 56, 10);
+                    c.strokeRect(-28, -28, 10, 56);
+                    break;
+
+                case 'tea_table':
+                    c.fillStyle = '#f8fafc'; c.beginPath(); c.roundRect(-22, -12, 44, 24, 6); c.fill(); c.stroke();
+                    break;
+
+                case 'wardrobe':
+                    c.fillStyle = '#f8fafc'; c.fillRect(-28, -14, 56, 28); c.strokeRect(-28, -14, 56, 28);
+                    c.beginPath(); c.moveTo(-28, -8); c.lineTo(28, -8); c.stroke();
+                    c.beginPath(); c.moveTo(0, -14); c.lineTo(0, 14); c.stroke();
+                    break;
+
+                case 'shoe_cabinet':
+                    c.fillStyle = '#fef3c7'; c.fillRect(-22, -12, 44, 24); c.strokeRect(-22, -12, 44, 24);
+                    c.strokeStyle = '#d97706';
+                    c.beginPath(); c.moveTo(-22, -4); c.lineTo(22, -4); c.moveTo(-22, 4); c.lineTo(22, 4); c.stroke();
+                    c.fillStyle = '#b45309'; c.fillRect(-12, 9, 6, 2); c.fillRect(6, 9, 6, 2);
+                    break;
+
+                case 'tv_cabinet':
+                    c.fillStyle = '#e2e8f0'; c.fillRect(-28, -10, 56, 20); c.strokeRect(-28, -10, 56, 20);
+                    c.strokeRect(-12, -7, 24, 14);
+                    c.beginPath(); c.arc(0, 0, 2, 0, Math.PI*2); c.stroke();
+                    break;
+
+                case 'display_cabinet':
+                    c.fillStyle = '#f0f9ff'; c.fillRect(-20, -14, 40, 28); c.strokeRect(-20, -14, 40, 28);
+                    c.strokeStyle = '#0284c7'; c.strokeRect(-18, -12, 36, 24);
+                    c.fillStyle = '#38bdf8'; c.beginPath(); c.arc(-10, -6, 2, 0, Math.PI*2); c.arc(10, -6, 2, 0, Math.PI*2); c.fill();
+                    break;
+
+                // --- 桌椅餐廳 ---
+                case 'table_rect':
+                    c.fillStyle = '#f1f5f9'; c.fillRect(-26, -14, 52, 28); c.strokeRect(-26, -14, 52, 28);
+                    [-18, 0, 18].forEach(px => {
+                        c.strokeRect(px-4, -22, 8, 6);
+                        c.strokeRect(px-4, 16, 8, 6);
+                    });
+                    break;
+
+                case 'table_round':
+                    c.fillStyle = '#f1f5f9'; c.beginPath(); c.arc(0, 0, 18, 0, Math.PI*2); c.fill(); c.stroke();
+                    [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach(ang => {
+                        let cx = Math.cos(ang) * 24, cy = Math.sin(ang) * 24;
+                        c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI*2); c.stroke();
+                    });
+                    break;
+
+                case 'desk_office':
+                    c.fillStyle = '#f8fafc'; c.fillRect(-26, -14, 52, 28); c.strokeRect(-26, -14, 52, 28);
+                    c.fillStyle = '#334155'; c.fillRect(-10, -10, 20, 5);
+                    break;
+
+                case 'office_chair':
+                    c.fillStyle = '#475569'; c.beginPath(); c.arc(0, 0, 10, 0, Math.PI*2); c.fill(); c.stroke();
+                    for (let i = 0; i < 5; i++) {
+                        let a = (i * Math.PI * 2) / 5;
+                        c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a)*15, Math.sin(a)*15); c.stroke();
+                    }
+                    break;
+
+                // --- 燈具設備 ---
+                case 'light_recessed':
+                    c.fillStyle = '#fef08a'; c.beginPath(); c.arc(0, 0, 10, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.strokeStyle = '#eab308';
+                    for (let a = 0; a < Math.PI*2; a += Math.PI/4) {
+                        c.beginPath(); c.moveTo(Math.cos(a)*10, Math.sin(a)*10); c.lineTo(Math.cos(a)*15, Math.sin(a)*15); c.stroke();
+                    }
+                    break;
+
+                case 'light_desk':
+                    c.fillStyle = '#94a3b8'; c.beginPath(); c.arc(-8, 8, 6, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.beginPath(); c.moveTo(-8, 8); c.lineTo(4, -4); c.stroke();
+                    c.fillStyle = '#fef08a'; c.beginPath(); c.arc(8, -8, 8, 0, Math.PI*2); c.fill(); c.stroke();
+                    break;
+
+                case 'light_chandelier':
+                    c.fillStyle = '#fef08a'; c.beginPath(); c.arc(0, 0, 8, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.strokeStyle = '#eab308'; c.lineWidth = 2;
+                    [0, Math.PI/3, (2*Math.PI)/3, Math.PI, (4*Math.PI)/3, (5*Math.PI)/3].forEach(ang => {
+                        let lx = Math.cos(ang)*18, ly = Math.sin(ang)*18;
+                        c.beginPath(); c.moveTo(0,0); c.lineTo(lx, ly); c.stroke();
+                        c.beginPath(); c.arc(lx, ly, 3, 0, Math.PI*2); c.fillStyle='#fde047'; c.fill(); c.stroke();
+                    });
+                    break;
+
+                case 'light_floor':
+                    c.fillStyle = '#475569'; c.beginPath(); c.arc(0, 0, 12, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.fillStyle = '#fef08a'; c.beginPath(); c.arc(0, 0, 6, 0, Math.PI*2); c.fill(); c.stroke();
+                    break;
+
+                // --- 家電設備 ---
+                case 'tv':
+                    c.fillStyle = '#0f172a'; c.fillRect(-24, -4, 48, 8); c.strokeRect(-24, -4, 48, 8);
+                    break;
+
+                case 'air_conditioner':
+                    c.fillStyle = '#ffffff'; c.fillRect(-20, -8, 40, 16); c.strokeRect(-20, -8, 40, 16);
+                    c.strokeStyle = '#3b82f6'; c.beginPath(); c.moveTo(-16, 4); c.lineTo(16, 4); c.stroke();
+                    break;
+
+                case 'washing_machine':
+                    c.fillStyle = '#f8fafc'; c.fillRect(-16, -16, 32, 32); c.strokeRect(-16, -16, 32, 32);
+                    c.beginPath(); c.arc(0, 0, 10, 0, Math.PI*2); c.stroke();
+                    c.beginPath(); c.arc(0, 0, 6, 0, Math.PI*2); c.stroke();
+                    break;
+
+                case 'robot_cleaner':
+                    c.fillStyle = '#e2e8f0'; c.beginPath(); c.arc(0, 0, 14, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.fillStyle = '#3b82f6'; c.beginPath(); c.arc(0, -6, 3, 0, Math.PI*2); c.fill();
+                    c.strokeRect(-4, 8, 8, 3);
+                    break;
+
+                // --- 屏風與開運植栽 ---
+                case 'screen_partition':
+                    c.strokeStyle = '#d97706'; c.lineWidth = 2.5;
+                    c.beginPath(); c.moveTo(-24, 0); c.lineTo(24, 0); c.stroke();
+                    for (let px = -20; px <= 20; px += 8) {
+                        c.beginPath(); c.moveTo(px, -4); c.lineTo(px, 4); c.stroke();
+                    }
+                    break;
+
+                case 'entry_cabinet':
+                    c.fillStyle = '#fef3c7'; c.fillRect(-22, -10, 44, 20); c.strokeRect(-22, -10, 44, 20);
+                    c.fillStyle = '#22c55e'; c.beginPath(); c.arc(0, 0, 5, 0, Math.PI*2); c.fill();
+                    break;
+
+                case 'virtual_wall':
+                    c.strokeStyle = '#ef4444'; c.lineWidth = 2; c.setLineDash([6, 4]);
+                    c.beginPath(); c.moveTo(-26, 0); c.lineTo(26, 0); c.stroke();
+                    c.fillStyle = '#ef4444'; c.beginPath(); c.arc(-26, 0, 3, 0, Math.PI*2); c.arc(26, 0, 3, 0, Math.PI*2); c.fill();
+                    break;
+
+                case 'plant_tree':
+                    c.fillStyle = '#b45309'; c.beginPath(); c.arc(0, 0, 8, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.fillStyle = '#22c55e';
+                    for (let a = 0; a < Math.PI*2; a += Math.PI/4) {
+                        let lx = Math.cos(a) * 14, ly = Math.sin(a) * 14;
+                        c.beginPath(); c.arc(lx, ly, 8, 0, Math.PI*2); c.fill(); c.stroke();
+                    }
+                    break;
+
+                case 'plant_potted':
+                    c.fillStyle = '#f8fafc'; c.fillRect(-10, -10, 20, 20); c.strokeRect(-10, -10, 20, 20);
+                    c.fillStyle = '#16a34a';
+                    c.beginPath(); c.arc(-4, -4, 7, 0, Math.PI*2); c.arc(4, 4, 7, 0, Math.PI*2); c.arc(-4, 4, 6, 0, Math.PI*2); c.arc(4, -4, 6, 0, Math.PI*2); c.fill();
+                    break;
+
+                case 'plant_fortune':
+                    c.fillStyle = '#e0f2fe'; c.beginPath(); c.arc(0, 0, 12, 0, Math.PI*2); c.fill(); c.stroke();
+                    c.fillStyle = '#22c55e';
+                    [-5, 0, 5].forEach(px => { c.beginPath(); c.arc(px, px/2, 3, 0, Math.PI*2); c.fill(); });
+                    break;
+
+                default:
+                    c.strokeRect(-16, -16, 32, 32);
+                    break;
+            }
+            c.restore();
+        }
+
+        // 格局模板引擎
+        function applyTemplate(type, recordHistory = true) {
+            state1 = { walls: [], items: [], bgImage: state1.bgImage };
+            fengShuiHighlights = [];
+            const cx = 340, cy = 375;
+
+            if (type === 'square') {
+                const s = 200;
+                state1.walls.push({x1: cx-s, y1: cy-s, x2: cx+s, y2: cy-s, type: 'load'});
+                state1.walls.push({x1: cx+s, y1: cy-s, x2: cx+s, y2: cy+s, type: 'load'});
+                state1.walls.push({x1: cx+s, y1: cy+s, x2: cx-s, y2: cy+s, type: 'load'});
+                state1.walls.push({x1: cx-s, y1: cy+s, x2: cx-s, y2: cy-s, type: 'load'});
+            } else if (type === 'rectangle') {
+                const w = 250, h = 180;
+                state1.walls.push({x1: cx-w, y1: cy-h, x2: cx+w, y2: cy-h, type: 'load'});
+                state1.walls.push({x1: cx+w, y1: cy-h, x2: cx+w, y2: cy+h, type: 'load'});
+                state1.walls.push({x1: cx+w, y1: cy+h, x2: cx-w, y2: cy+h, type: 'load'});
+                state1.walls.push({x1: cx-w, y1: cy+h, x2: cx-w, y2: cy-h, type: 'load'});
+            } else if (type === 'missing_corner') {
+                const s = 220;
+                state1.walls.push({x1: cx-s, y1: cy-s, x2: cx+s, y2: cy-s, type: 'load'});
+                state1.walls.push({x1: cx+s, y1: cy-s, x2: cx+s, y2: cy+s, type: 'load'});
+                state1.walls.push({x1: cx+s, y1: cy+s, x2: cx, y2: cy+s, type: 'load'});
+                state1.walls.push({x1: cx, y1: cy+s, x2: cx, y2: cy, type: 'load'});
+                state1.walls.push({x1: cx, y1: cy, x2: cx-s, y2: cy, type: 'load'});
+                state1.walls.push({x1: cx-s, y1: cy, x2: cx-s, y2: cy-s, type: 'load'});
+            } else if (type === 'two_rooms') {
+                const w = 250, h = 180;
+                state1.walls.push({x1: cx-w, y1: cy-h, x2: cx+w, y2: cy-h, type: 'load'});
+                state1.walls.push({x1: cx+w, y1: cy-h, x2: cx+w, y2: cy+h, type: 'load'});
+                state1.walls.push({x1: cx+w, y1: cy+h, x2: cx-w, y2: cy+h, type: 'load'});
+                state1.walls.push({x1: cx-w, y1: cy+h, x2: cx-w, y2: cy-h, type: 'load'});
+                state1.walls.push({x1: cx-30, y1: cy-h, x2: cx-30, y2: cy+20, type: 'part'});
+                state1.walls.push({x1: cx-w, y1: cy-10, x2: cx-80, y2: cy-10, type: 'part'});
+                state1.walls.push({x1: cx+90, y1: cy+30, x2: cx+w, y2: cy+30, type: 'part'});
+                state1.walls.push({x1: cx+90, y1: cy+30, x2: cx+90, y2: cy+h, type: 'part'});
+            } else if (type === 'three_rooms') {
+                const w = 280, h = 210;
+                state1.walls.push({x1: cx-w, y1: cy-h, x2: cx+w, y2: cy-h, type: 'load'});
+                state1.walls.push({x1: cx+w, y1: cy-h, x2: cx+w, y2: cy+h, type: 'load'});
+                state1.walls.push({x1: cx+w, y1: cy+h, x2: cx-w, y2: cy+h, type: 'load'});
+                state1.walls.push({x1: cx-w, y1: cy+h, x2: cx-w, y2: cy-h, type: 'load'});
+                state1.walls.push({x1: cx-40, y1: cy-h, x2: cx-40, y2: cy+30, type: 'part'});
+                state1.walls.push({x1: cx-w, y1: cy-20, x2: cx-90, y2: cy-20, type: 'part'});
+                state1.walls.push({x1: cx+80, y1: cy-h, x2: cx+80, y2: cy-10, type: 'part'});
+                state1.walls.push({x1: cx+110, y1: cy+40, x2: cx+w, y2: cy+40, type: 'part'});
+                state1.walls.push({x1: cx+110, y1: cy+40, x2: cx+110, y2: cy+h, type: 'part'});
+            }
+
+            selectedItem = null;
+            hideToolbar();
+            if (recordHistory) saveState();
+        }
+
+        function setupEventListeners() {
+            document.getElementById('mode-select').addEventListener('click', () => { currentMode = 'select'; activeItemType = null; });
+            document.getElementById('mode-eraser').addEventListener('click', () => { currentMode = 'eraser'; activeItemType = null; });
+            document.getElementById('wall-load').addEventListener('click', () => { currentMode = 'wall_load'; activeItemType = null; });
+            document.getElementById('wall-part').addEventListener('click', () => { currentMode = 'wall_part'; activeItemType = null; });
+
+            document.getElementById('btn-undo').addEventListener('click', undo);
+            document.getElementById('btn-redo').addEventListener('click', redo);
+
+            window.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                    if (e.shiftKey) redo(); else undo();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                    redo();
+                }
+            });
+
+            document.getElementById('btn-clear').addEventListener('click', () => {
+                state1 = { walls: [], items: [], bgImage: null };
+                selectedItem = null;
+                fengShuiHighlights = [];
+                hideToolbar();
+                saveState();
+            });
+            document.getElementById('btn-fengshui').addEventListener('click', openFengShuiModal);
+            document.getElementById('btn-export').addEventListener('click', exportImage);
+
+            const fileImport = document.getElementById('file-import');
+            document.getElementById('btn-import').addEventListener('click', () => fileImport.click());
+            fileImport.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        state1.bgImage = img;
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+                e.target.value = '';
+            });
+
+            document.getElementById('btn-item-w-inc').addEventListener('click', () => { if (selectedItem) { selectedItem.scaleX = (selectedItem.scaleX || 1) + 0.15; saveState(); } });
+            document.getElementById('btn-item-w-dec').addEventListener('click', () => { if (selectedItem) { selectedItem.scaleX = Math.max(0.3, (selectedItem.scaleX || 1) - 0.15); saveState(); } });
+            document.getElementById('btn-item-h-inc').addEventListener('click', () => { if (selectedItem) { selectedItem.scaleY = (selectedItem.scaleY || 1) + 0.15; saveState(); } });
+            document.getElementById('btn-item-h-dec').addEventListener('click', () => { if (selectedItem) { selectedItem.scaleY = Math.max(0.3, (selectedItem.scaleY || 1) - 0.15); saveState(); } });
+            document.getElementById('btn-item-rotate').addEventListener('click', () => { if (selectedItem) { selectedItem.rotation += Math.PI / 4; saveState(); } });
+            document.getElementById('btn-item-delete').addEventListener('click', () => {
+                if (selectedItem) {
+                    state1.items = state1.items.filter(i => i !== selectedItem);
+                    selectedItem = null;
+                    hideToolbar();
+                    saveState();
+                }
+            });
+
+            cv1.addEventListener('mousedown', onCanvasMouseDown);
+            cv1.addEventListener('mousemove', onCanvasMouseMove);
+            cv1.addEventListener('mouseup', onCanvasMouseUp);
+        }
+
+        function getMousePos(e, targetCv) {
+            const rect = targetCv.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function getItemName(type) {
+            for (let k in categories) {
+                let found = categories[k].find(i => i.id === type);
+                if (found) return found.name;
+            }
+            return type;
+        }
+
+        function onCanvasMouseDown(e) {
+            const pos = getMousePos(e, cv1);
+
+            if (currentMode === 'wall_load' || currentMode === 'wall_part') {
+                isDrawingWall = true;
+                wallStart = { x: Math.round(pos.x / 12) * 12, y: Math.round(pos.y / 12) * 12 };
+            } else if (currentMode === 'place' && activeItemType) {
+                state1.items.push({ id: Math.random(), type: activeItemType, x: pos.x, y: pos.y, rotation: 0, scaleX: 1, scaleY: 1 });
+                currentMode = 'select';
+                activeItemType = null;
+                document.getElementById('mode-select').className = 'px-2 py-1.5 bg-blue-600 text-white rounded text-xs font-medium flex items-center justify-center gap-1 shadow';
+                saveState();
+            } else if (currentMode === 'select') {
+                let clicked = state1.items.slice().reverse().find(item => Math.hypot(item.x - pos.x, item.y - pos.y) < 28);
+                if (clicked) {
+                    selectedItem = clicked;
+                    isDraggingItem = true;
+                    dragOffset = { x: clicked.x - pos.x, y: clicked.y - pos.y };
+                    showToolbar(clicked);
+                } else {
+                    selectedItem = null;
+                    hideToolbar();
+                }
+            } else if (currentMode === 'eraser') {
+                let prevLen = state1.items.length + state1.walls.length;
+                state1.items = state1.items.filter(i => Math.hypot(i.x - pos.x, i.y - pos.y) > 25);
+                state1.walls = state1.walls.filter(w => distToSegment(pos, {x:w.x1, y:w.y1}, {x:w.x2, y:w.y2}) > 15);
+                if (state1.items.length + state1.walls.length < prevLen) {
+                    saveState();
+                }
+            }
+        }
+
+        function onCanvasMouseMove(e) {
+            const pos = getMousePos(e, cv1);
+            currentMousePos = { x: Math.round(pos.x / 12) * 12, y: Math.round(pos.y / 12) * 12 };
+            
+            if (isDraggingItem && selectedItem) {
+                selectedItem.x = pos.x + dragOffset.x;
+                selectedItem.y = pos.y + dragOffset.y;
+            }
+        }
+
+        function onCanvasMouseUp(e) {
+            const pos = getMousePos(e, cv1);
+
+            if (isDrawingWall && wallStart) {
+                let wallEnd = { x: Math.round(pos.x / 12) * 12, y: Math.round(pos.y / 12) * 12 };
+                let wType = currentMode === 'wall_load' ? 'load' : 'part';
+                if (Math.hypot(wallEnd.x - wallStart.x, wallEnd.y - wallStart.y) > 10) {
+                    state1.walls.push({ x1: wallStart.x, y1: wallStart.y, x2: wallEnd.x, y2: wallEnd.y, type: wType });
+                    saveState();
+                }
+                isDrawingWall = false;
+                wallStart = null;
+            }
+
+            if (isDraggingItem) {
+                isDraggingItem = false;
+                saveState();
+            }
+        }
+
+        function distToSegment(p, p1, p2) {
+            let l2 = (p2.x - p1.x)**2 + (p2.y - p1.y)**2;
+            if (l2 === 0) return Math.hypot(p.x - p1.x, p.y - p1.y);
+            let t = ((p.x - p1.x)*(p2.x - p1.x) + (p.y - p1.y)*(p2.y - p1.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return Math.hypot(p.x - (p1.x + t*(p2.x - p1.x)), p.y - (p1.y + t*(p2.y - p1.y)));
+        }
+
+        function showToolbar(item) {
+            const tb = document.getElementById('floating-toolbar');
+            document.getElementById('selected-item-title').innerText = getItemName(item.type);
+            tb.classList.remove('hidden');
+            tb.classList.add('flex');
+        }
+
+        function hideToolbar() {
+            document.getElementById('floating-toolbar').classList.add('hidden');
+            document.getElementById('floating-toolbar').classList.remove('flex');
+        }
+
+        function mainLoop() {
+            renderCanvas(ctx1, cv1, state1);
+            requestAnimationFrame(mainLoop);
+        }
+
+        function renderCanvas(c, cv, st) {
+            c.clearRect(0, 0, cv.width, cv.height);
+
+            if (st.bgImage) {
+                c.save();
+                let imgAspect = st.bgImage.width / st.bgImage.height;
+                let cvAspect = cv.width / cv.height;
+                let drawW, drawH, drawX, drawY;
+
+                if (imgAspect > cvAspect) {
+                    drawW = cv.width;
+                    drawH = cv.width / imgAspect;
+                    drawX = 0;
+                    drawY = (cv.height - drawH) / 2;
+                } else {
+                    drawH = cv.height;
+                    drawW = cv.height * imgAspect;
+                    drawX = (cv.width - drawW) / 2;
+                    drawY = 0;
+                }
+                c.drawImage(st.bgImage, drawX, drawY, drawW, drawH);
+                c.restore();
+            }
+
+            c.strokeStyle = st.bgImage ? 'rgba(226, 232, 240, 0.4)' : '#e2e8f0'; 
+            c.lineWidth = 1;
+            for (let x = 0; x < cv.width; x += 24) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, cv.height); c.stroke(); }
+            for (let y = 0; y < cv.height; y += 24) { c.beginPath(); c.moveTo(0, y); c.lineTo(cv.width, y); c.stroke(); }
+
+            st.walls.forEach(w => {
+                c.save();
+                c.strokeStyle = w.type === 'load' ? '#0f172a' : '#2563eb';
+                c.lineWidth = w.type === 'load' ? 12 : 8;
+                if (w.type === 'part') c.setLineDash([10, 6]);
+                c.beginPath(); c.moveTo(w.x1, w.y1); c.lineTo(w.x2, w.y2); c.stroke();
+                c.restore();
+            });
+
+            if (isDrawingWall && wallStart) {
+                c.save();
+                c.strokeStyle = currentMode === 'wall_load' ? '#0f172a' : '#2563eb';
+                c.lineWidth = currentMode === 'wall_load' ? 12 : 8;
+                if (currentMode === 'wall_part') c.setLineDash([10, 6]);
+                c.beginPath(); c.moveTo(wallStart.x, wallStart.y); c.lineTo(currentMousePos.x, currentMousePos.y); c.stroke();
+                c.restore();
+            }
+
+            st.items.forEach(item => {
+                drawSymbol(c, item.type, item.x, item.y, item.scaleX || 1, item.scaleY || 1, item.rotation, false);
+                if (item === selectedItem) {
+                    c.save();
+                    c.strokeStyle = '#3b82f6'; c.lineWidth = 2; c.setLineDash([4, 4]);
+                    c.strokeRect(item.x - 32 * (item.scaleX||1), item.y - 32 * (item.scaleY||1), 64 * (item.scaleX||1), 64 * (item.scaleY||1));
+                    c.restore();
+                }
+            });
+
+            // 風水煞氣紅圈標記繪製
+            fengShuiHighlights.forEach(hl => {
+                c.save();
+                c.strokeStyle = '#ef4444';
+                c.lineWidth = 3;
+                c.setLineDash([6, 3]);
+                c.beginPath();
+                c.arc(hl.x, hl.y, hl.r, 0, Math.PI * 2);
+                c.stroke();
+
+                c.fillStyle = '#dc2626';
+                c.font = 'bold 11px sans-serif';
+                c.fillRect(hl.x - 30, hl.y - hl.r - 18, 60, 16);
+                c.fillStyle = '#ffffff';
+                c.textAlign = 'center';
+                c.fillText(hl.tag, hl.x, hl.y - hl.r - 6);
+                c.restore();
+            });
+        }
+
+        // 智慧風水檢測與畫布煞氣圈選引擎
+        function openFengShuiModal() {
+            const modal = document.getElementById('fengshui-modal');
+            modal.classList.remove('hidden');
+            const scoreEl = document.getElementById('fs-score');
+            const badgeEl = document.getElementById('fs-badge');
+            const detailsEl = document.getElementById('fs-details');
+
+            const items = state1.items;
+            let score = 100;
+            let warnings = [];
+            let praises = [];
+            fengShuiHighlights = []; 
+
+            const doors = items.filter(i => i.type.startsWith('door_'));
+            const beds = items.filter(i => i.type.startsWith('bed_'));
+            const stoves = items.filter(i => i.type.startsWith('stove_'));
+            const sinks = items.filter(i => i.type.startsWith('sink_'));
+            const fridges = items.filter(i => i.type.startsWith('fridge_'));
+            const toilets = items.filter(i => i.type === 'toilet_sit');
+            const mirrors = items.filter(i => i.type === 'mirror_cabinet');
+            const partitions = items.filter(i => i.type === 'screen_partition' || i.type === 'entry_cabinet');
+            const plants = items.filter(i => i.type.startsWith('plant_'));
+
+            if (items.length === 0) {
+                score = 50;
+                if (state1.bgImage) {
+                    warnings.push('💡 <b>偵測到已匯入平面底圖：</b>底圖為靜態圖片，請從上方選單（如：1.門窗、3.廚房、4.床臥）點選 <b>門、床位、瓦斯爐</b> 疊加擺放在底圖對應位置上，系統即可進行精準風水診斷並圈出畫布煞氣！');
+                } else {
+                    warnings.push('⚠️ <b>畫布上尚無任何物件：</b>請點選上方圖庫，在畫布擺放門窗、床位、爐具進行風水診斷。');
+                }
+            } else {
+                if (doors.length === 0) {
+                    score -= 15;
+                    warnings.push('⚠️ <b>未標示氣口/門：</b>缺少房門或大門，無法判定氣流進出動線。');
+                }
+
+                // 門沖床
+                doors.forEach((door) => {
+                    beds.forEach((bed) => {
+                        const dist = Math.hypot(door.x - bed.x, door.y - bed.y);
+                        if (dist < 130) {
+                            score -= 20;
+                            warnings.push(`❌ <b>煞氣告警【門沖床】</b>：門口直沖床位，易感不安心神不寧。`);
+                            fengShuiHighlights.push({ x: bed.x, y: bed.y, r: 35, tag: '門沖床' });
+                        }
+                    });
+                });
+
+                // 開門見灶
+                doors.forEach((door) => {
+                    stoves.forEach((stove) => {
+                        const dist = Math.hypot(door.x - stove.x, door.y - stove.y);
+                        if (dist < 140) {
+                            const hasScreen = partitions.some(p => Math.hypot(p.x - stove.x, p.y - stove.y) < 100);
+                            if (!hasScreen) {
+                                score -= 20;
+                                warnings.push(`❌ <b>煞氣告警【開門見灶】</b>：門口直對瓦斯爐難聚財，建議設置屏風。`);
+                                fengShuiHighlights.push({ x: stove.x, y: stove.y, r: 32, tag: '開門見灶' });
+                            } else {
+                                praises.push(`🛡️ <b>化煞成功【屏風擋灶】：</b>設有屏風隔斷，成功化解開門見灶之破財煞！`);
+                            }
+                        }
+                    });
+                });
+
+                // 水火相衝
+                stoves.forEach((stove) => {
+                    sinks.forEach((sink) => {
+                        const dist = Math.hypot(stove.x - sink.x, stove.y - sink.y);
+                        if (dist < 90) {
+                            score -= 15;
+                            warnings.push(`❌ <b>煞氣告警【水火相衝】</b>：瓦斯爐與水槽距離過近，易引發口角爭執。`);
+                            fengShuiHighlights.push({ x: stove.x, y: stove.y, r: 30, tag: '水火相衝' });
+                        }
+                    });
+                });
+
+                // 鏡子照床
+                mirrors.forEach((mirror) => {
+                    beds.forEach((bed) => {
+                        const dist = Math.hypot(mirror.x - bed.x, mirror.y - bed.y);
+                        if (dist < 120) {
+                            score -= 10;
+                            warnings.push(`⚠️ <b>風水忌諱【鏡子照床】</b>：鏡面正對床位，夜半容易受驚造成失眠。`);
+                            fengShuiHighlights.push({ x: mirror.x, y: mirror.y, r: 28, tag: '鏡照床' });
+                        }
+                    });
+                });
+
+                if (plants.length > 0) {
+                    praises.push(`🌿 <b>綠意開運：</b>使用了 ${plants.length} 個生旺植物圖示，有助於緩和空間煞氣。`);
+                    score = Math.min(100, score + 5 * plants.length);
+                }
+            }
+
+            score = Math.max(0, Math.min(100, score));
+
+            if (score >= 85) {
+                badgeEl.className = "px-3 py-1 bg-emerald-900/50 text-emerald-300 text-xs font-semibold rounded-full border border-emerald-600/50";
+                badgeEl.innerText = "吉利格局";
+            } else if (score >= 65) {
+                badgeEl.className = "px-3 py-1 bg-yellow-900/50 text-yellow-300 text-xs font-semibold rounded-full border border-yellow-600/50";
+                badgeEl.innerText = "格局尚可";
+            } else {
+                badgeEl.className = "px-3 py-1 bg-red-900/50 text-red-300 text-xs font-semibold rounded-full border border-red-600/50";
+                badgeEl.innerText = "存在顯著沖煞";
+            }
+
+            scoreEl.innerText = `${score} 分`;
+
+            let html = '';
+            if (fengShuiHighlights.length > 0) {
+                html += `<div class="p-2.5 bg-red-950/60 border border-red-800/80 rounded-xl text-red-200 text-xs flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-circle-exclamation text-red-400 text-base"></i>
+                    <div>已在畫布上標示 <b>${fengShuiHighlights.length} 處紅圈煞氣位置</b>，關閉視窗即可即時檢視。</div>
+                </div>`;
+            }
+
+            if (praises.length > 0) {
+                html += `<div class="p-3 bg-emerald-950/50 border border-emerald-800/80 rounded-xl text-emerald-200 text-xs space-y-1.5 mb-2">${praises.map(p => `<p>${p}</p>`).join('')}</div>`;
+            }
+
+            if (warnings.length > 0) {
+                html += `<div class="p-3 bg-slate-800/90 border border-slate-700 rounded-xl text-slate-200 text-xs space-y-2.5">${warnings.map(w => `<p class="leading-relaxed">${w}</p>`).join('')}</div>`;
+            } else if (items.length > 0) {
+                html += `<div class="p-3.5 bg-emerald-900/40 border border-emerald-700 rounded-xl text-emerald-300 text-xs leading-relaxed">
+                    🎉 <b>檢測完成：</b>配置和諧，未發現顯著沖煞問題！
+                </div>`;
+            }
+
+            detailsEl.innerHTML = html;
+        }
+
+        function closeFengShuiModal() {
+            document.getElementById('fengshui-modal').classList.add('hidden');
+        }
+
+        function exportImage() {
+            const link = document.createElement('a');
+            link.download = 'Floor_Plan_V35.png';
+            link.href = cv1.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
